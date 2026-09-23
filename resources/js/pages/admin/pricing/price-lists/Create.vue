@@ -1,0 +1,9 @@
+<script setup lang="ts">
+import { Head, Link, useForm } from '@inertiajs/vue3';
+import FieldError from '../../../../components/FieldError.vue';
+import AdminLayout from '../../../../layouts/AdminLayout.vue';
+const props = defineProps<{ currencies: string[]; defaultCurrency: string }>();
+const form = useForm({ name: '', code: '', currency: props.defaultCurrency });
+const submit = () => form.post('/admin/pricing/price-lists');
+</script>
+<template><Head title="Create price list" /><AdminLayout><section class="max-w-2xl"><p class="font-mono text-xs tracking-[0.2em] text-emerald-800 uppercase">Pricing</p><h1 class="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">Create price list.</h1><form class="mt-10 grid gap-5 border border-[#17211b]/15 bg-[#f8f5ed] p-6 sm:p-8" @submit.prevent="submit"><div><label class="mb-2 block font-semibold">Name</label><input v-model="form.name" required maxlength="120" autofocus class="w-full border bg-white px-4 py-3" /><FieldError :message="form.errors.name" /></div><div><label class="mb-2 block font-semibold">Stable code</label><input v-model="form.code" required maxlength="40" placeholder="WHOLESALE" class="w-full border bg-white px-4 py-3 font-mono uppercase" /><FieldError :message="form.errors.code" /></div><div><label class="mb-2 block font-semibold">Currency</label><select v-model="form.currency" class="w-full border bg-white px-4 py-3"><option v-for="currency in currencies" :key="currency">{{ currency }}</option></select><FieldError :message="form.errors.currency" /></div><div class="flex gap-4"><button :disabled="form.processing" class="bg-[#17211b] px-5 py-3 text-sm font-semibold text-white">Create list</button><Link href="/admin/pricing" class="py-3 text-sm font-semibold text-emerald-800">Cancel</Link></div></form></section></AdminLayout></template>
