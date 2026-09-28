@@ -5,6 +5,9 @@ return [
     'default_country' => env('COMMERCE_DEFAULT_COUNTRY', 'PE'),
     'default_inventory_location_name' => env('COMMERCE_DEFAULT_INVENTORY_LOCATION_NAME', 'Almacén principal'),
     'default_inventory_location_code' => env('COMMERCE_DEFAULT_INVENTORY_LOCATION_CODE', 'MAIN'),
+    'inventory' => [
+        'low_stock_threshold' => (int) env('COMMERCE_INVENTORY_LOW_STOCK_THRESHOLD', 5),
+    ],
     // Cart stock checks aggregate active inventory locations; allocation remains a Checkout concern.
     'cart_ttl_hours' => (int) env('COMMERCE_CART_TTL_HOURS', 72),
     'cart_max_item_quantity' => (int) env('COMMERCE_CART_MAX_ITEM_QUANTITY', 9999),

@@ -3,96 +3,90 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import type { PageProps } from '../types';
 
+interface NavItem {
+    label: string;
+    href: string;
+    permission?: string;
+}
+
 const page = usePage<PageProps>();
 const user = computed(() => page.props.auth.user);
+const permissions = computed(() => page.props.currentTenantMembership?.permissions ?? []);
+const allowed = (item: NavItem) => !item.permission || permissions.value.includes(item.permission);
+const active = (href: string) => page.url === href || (href !== '/admin/dashboard' && page.url.startsWith(`${href}/`));
 const currentTenant = computed(() => page.props.currentTenant);
 const currentStore = computed(() => page.props.currentStore);
-const canCreateStore = computed(() => page.props.currentTenantMembership?.permissions.includes('stores.create') ?? false);
-const canViewProducts = computed(() => page.props.currentTenantMembership?.permissions.includes('products.view') ?? false);
-const canViewCategories = computed(() => page.props.currentTenantMembership?.permissions.includes('categories.view') ?? false);
-const canViewPricing = computed(() => page.props.currentTenantMembership?.permissions.includes('pricing.view') ?? false);
-const canViewPromotions = computed(() => page.props.currentTenantMembership?.permissions.includes('promotions.view') ?? false);
-const canViewInventory = computed(() => page.props.currentTenantMembership?.permissions.includes('inventory.view') ?? false);
-const canViewListings = computed(() => page.props.currentTenantMembership?.permissions.includes('listings.view') ?? false);
-const canViewCustomers = computed(() => page.props.currentTenantMembership?.permissions.includes('customers.view') ?? false);
-const canViewCarts = computed(() => page.props.currentTenantMembership?.permissions.includes('carts.view') ?? false);
-const canViewCheckouts = computed(() => page.props.currentTenantMembership?.permissions.includes('checkouts.view') ?? false);
-const canViewOrders = computed(() => page.props.currentTenantMembership?.permissions.includes('orders.view') ?? false);
+
+const sections: Array<{ label: string; items: NavItem[] }> = [
+    { label: 'Catalog', items: [
+        { label: 'Products', href: '/admin/products', permission: 'products.view' },
+        { label: 'Categories', href: '/admin/categories', permission: 'categories.view' },
+        { label: 'Listings', href: '/admin/listings', permission: 'listings.view' },
+        { label: 'Promotions', href: '/admin/promotions', permission: 'promotions.view' },
+        { label: 'Pricing', href: '/admin/pricing', permission: 'pricing.view' },
+    ] },
+    { label: 'Sales', items: [
+        { label: 'Carts', href: '/admin/carts', permission: 'carts.view' },
+        { label: 'Checkouts', href: '/admin/checkouts', permission: 'checkouts.view' },
+        { label: 'Orders', href: '/admin/orders', permission: 'orders.view' },
+        { label: 'Payments', href: '/admin/payments', permission: 'payments.view' },
+    ] },
+    { label: 'Operations', items: [
+        { label: 'Fulfillment', href: '/admin/fulfillments', permission: 'fulfillments.view' },
+        { label: 'Returns', href: '/admin/returns', permission: 'returns.view' },
+        { label: 'Refunds', href: '/admin/refunds', permission: 'refunds.view' },
+        { label: 'Exchanges', href: '/admin/exchanges', permission: 'exchanges.view' },
+        { label: 'Customers', href: '/admin/customers', permission: 'customers.view' },
+    ] },
+    { label: 'Inventory', items: [
+        { label: 'Stock', href: '/admin/inventory', permission: 'inventory.view' },
+        { label: 'Locations', href: '/admin/inventory/locations', permission: 'inventory.view' },
+    ] },
+    { label: 'Procurement', items: [
+        { label: 'Suppliers', href: '/admin/suppliers', permission: 'suppliers.view' },
+        { label: 'Purchase orders', href: '/admin/purchase-orders', permission: 'procurement.view' },
+    ] },
+    { label: 'Fiscal', items: [
+        { label: 'Documents', href: '/admin/fiscal-documents', permission: 'fiscal_documents.view' },
+        { label: 'Taxes', href: '/admin/taxes', permission: 'taxes.view' },
+    ] },
+];
 </script>
 
 <template>
-    <div class="min-h-screen bg-[#f1eee6] text-[#17211b]">
-        <header class="border-b border-[#17211b]/15 bg-[#17211b] text-white">
-            <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5 px-5 py-5 sm:px-8">
-                <div>
-                    <p class="text-xs font-semibold tracking-[0.24em] text-[#d8f36a] uppercase">
-                        Commerce / Admin
-                    </p>
-                    <p class="mt-1 text-sm text-white/60">
-                        {{ currentTenant?.name ?? 'Choose your workspace' }}
-                        <template v-if="currentStore"> / {{ currentStore.name }}</template>
-                    </p>
-                </div>
-
-                <nav class="flex flex-wrap items-center gap-3">
-                    <Link href="/admin/tenants" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Change company
-                    </Link>
-                    <Link href="/admin/tenants/create" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        New company
-                    </Link>
-                    <Link href="/admin/stores" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Change store
-                    </Link>
-                    <Link v-if="canCreateStore" href="/admin/stores/create" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        New store
-                    </Link>
-                    <Link v-if="canViewProducts" href="/admin/products" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Products
-                    </Link>
-                    <Link v-if="canViewCategories" href="/admin/categories" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Categories
-                    </Link>
-                    <Link v-if="canViewPricing" href="/admin/pricing" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Pricing
-                    </Link>
-                    <Link v-if="canViewPromotions" href="/admin/promotions" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Promotions
-                    </Link>
-                    <Link v-if="canViewInventory" href="/admin/inventory" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Inventory
-                    </Link>
-                    <Link v-if="canViewListings" href="/admin/listings" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Listings
-                    </Link>
-                    <Link v-if="canViewCustomers" href="/admin/customers" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Customers
-                    </Link>
-                    <Link v-if="canViewCarts" href="/admin/carts" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Carts
-                    </Link>
-                    <Link v-if="canViewCheckouts" href="/admin/checkouts" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Checkouts
-                    </Link>
-                    <Link v-if="canViewOrders" href="/admin/orders" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Orders
-                    </Link>
-                    <Link href="/admin/access" class="px-3 py-2 text-sm font-semibold text-white/75 transition hover:text-[#d8f36a]">
-                        Access
-                    </Link>
-                    <Link
-                        href="/logout"
-                        method="post"
-                        as="button"
-                        class="border border-white/25 px-4 py-2 text-sm font-semibold transition hover:border-[#d8f36a] hover:text-[#d8f36a]"
-                    >
-                        Log out
-                    </Link>
-                </nav>
+    <div class="min-h-screen bg-[#f1eee6] text-[#17211b] lg:grid lg:grid-cols-[17rem_1fr]">
+        <aside class="bg-[#17211b] text-white lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
+            <div class="border-b border-white/10 px-5 py-5">
+                <Link href="/admin/dashboard" class="text-xs font-semibold tracking-[0.24em] text-[#d8f36a] uppercase">Commerce / Admin</Link>
+                <p class="mt-2 truncate text-sm text-white/60">{{ currentTenant?.name ?? 'Choose your workspace' }}</p>
+                <p v-if="currentStore" class="truncate text-xs text-white/45">{{ currentStore.name }}</p>
             </div>
-        </header>
 
-        <main class="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-20">
+            <nav class="flex gap-6 overflow-x-auto px-5 py-5 lg:block lg:space-y-6" aria-label="Admin navigation">
+                <div class="shrink-0">
+                    <p class="mb-2 text-[10px] font-semibold tracking-[0.2em] text-white/35 uppercase">Home</p>
+                    <Link href="/admin/dashboard" :class="active('/admin/dashboard') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Dashboard</Link>
+                </div>
+                <div v-for="section in sections" :key="section.label" class="shrink-0" v-show="section.items.some(allowed)">
+                    <p class="mb-2 text-[10px] font-semibold tracking-[0.2em] text-white/35 uppercase">{{ section.label }}</p>
+                    <Link v-for="item in section.items.filter(allowed)" :key="item.href" :href="item.href" :class="active(item.href) ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold transition">{{ item.label }}</Link>
+                </div>
+                <div v-if="permissions.includes('settings.view')" class="shrink-0">
+                    <p class="mb-2 text-[10px] font-semibold tracking-[0.2em] text-white/35 uppercase">Settings</p>
+                    <Link href="/admin/settings" :class="active('/admin/settings') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">General</Link>
+                    <Link v-if="permissions.includes('stores.view')" href="/admin/stores" :class="active('/admin/stores') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Stores</Link>
+                    <Link v-if="permissions.includes('members.view')" href="/admin/settings/team" :class="active('/admin/settings/team') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Team &amp; Access</Link>
+                </div>
+            </nav>
+
+            <div class="flex flex-wrap gap-2 border-t border-white/10 px-5 py-5 text-xs">
+                <Link href="/admin/tenants" class="text-white/60 hover:text-white">Companies</Link>
+                <Link href="/admin/stores" class="text-white/60 hover:text-white">Stores</Link>
+                <Link href="/logout" method="post" as="button" class="ml-auto text-white/60 hover:text-white">Log out</Link>
+            </div>
+        </aside>
+
+        <main class="min-w-0 px-5 py-10 sm:px-8 sm:py-14 xl:px-12">
             <slot :user="user" :current-tenant="currentTenant" :current-store="currentStore" />
         </main>
     </div>

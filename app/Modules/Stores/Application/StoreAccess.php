@@ -33,6 +33,12 @@ class StoreAccess
             && $this->permissionChecker->userCan($user, PermissionKey::StoresSelect);
     }
 
+    public function canUpdate(User $user, Tenant $tenant): bool
+    {
+        return $this->forCurrentTenant($tenant)
+            && $this->permissionChecker->userCan($user, PermissionKey::StoresUpdate);
+    }
+
     private function forCurrentTenant(Tenant $tenant): bool
     {
         return $this->tenantContext->id() === $tenant->getKey();

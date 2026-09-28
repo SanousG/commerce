@@ -10,6 +10,11 @@ use App\Modules\Catalog\Domain\Models\ProductVariant;
 use App\Modules\Checkout\Domain\Models\CheckoutSession;
 use App\Modules\Customers\Domain\Models\Customer;
 use App\Modules\Customers\Domain\Models\CustomerAddress;
+use App\Modules\Fiscal\Domain\Models\FiscalDocument;
+use App\Modules\Fiscal\Domain\Models\FiscalIssuerProfile;
+use App\Modules\Fiscal\Domain\Models\FiscalSeries;
+use App\Modules\Fulfillment\Domain\Models\Fulfillment;
+use App\Modules\Fulfillment\Domain\Models\Shipment;
 use App\Modules\Inventory\Domain\Models\InventoryLevel;
 use App\Modules\Inventory\Domain\Models\InventoryLocation;
 use App\Modules\Inventory\Domain\Models\InventoryMovement;
@@ -18,9 +23,12 @@ use App\Modules\Inventory\Domain\Models\InventoryTransfer;
 use App\Modules\Listings\Domain\Models\StoreListing;
 use App\Modules\Listings\Domain\Models\StoreListingVariant;
 use App\Modules\Orders\Domain\Models\Order;
+use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Pricing\Domain\Models\PriceList;
 use App\Modules\Promotions\Domain\Models\Promotion;
 use App\Modules\Stores\Domain\Models\Store;
+use App\Modules\Tax\Domain\Models\TaxCategory;
+use App\Modules\Tax\Domain\Models\TaxRate;
 use App\Modules\Tenancy\Domain\Enums\TenantStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -40,6 +48,11 @@ class Tenant extends Model
     public function members(): HasMany
     {
         return $this->hasMany(TenantMember::class);
+    }
+
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(TenantInvitation::class);
     }
 
     /**
@@ -99,6 +112,46 @@ class Tenant extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function fulfillments(): HasMany
+    {
+        return $this->hasMany(Fulfillment::class);
+    }
+
+    public function shipments(): HasMany
+    {
+        return $this->hasMany(Shipment::class);
+    }
+
+    public function taxCategories(): HasMany
+    {
+        return $this->hasMany(TaxCategory::class);
+    }
+
+    public function taxRates(): HasMany
+    {
+        return $this->hasMany(TaxRate::class);
+    }
+
+    public function fiscalIssuerProfile(): HasOne
+    {
+        return $this->hasOne(FiscalIssuerProfile::class);
+    }
+
+    public function fiscalSeries(): HasMany
+    {
+        return $this->hasMany(FiscalSeries::class);
+    }
+
+    public function fiscalDocuments(): HasMany
+    {
+        return $this->hasMany(FiscalDocument::class);
     }
 
     /** @return HasMany<CustomerAddress, $this> */

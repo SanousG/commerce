@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Modules\Access\Http\Controllers\AccessController;
+use App\Modules\Analytics\Http\Controllers\AdminDashboardController;
 use App\Modules\Cart\Http\Controllers\CartController;
 use App\Modules\Catalog\Http\Controllers\CategoryController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
@@ -16,17 +17,39 @@ use App\Modules\Catalog\Http\Controllers\ProductVariantController;
 use App\Modules\Checkout\Http\Controllers\CheckoutController;
 use App\Modules\Customers\Http\Controllers\CustomerAddressController;
 use App\Modules\Customers\Http\Controllers\CustomerController;
+use App\Modules\Fiscal\Http\Controllers\FiscalDocumentController;
+use App\Modules\Fiscal\Http\Controllers\FiscalSeriesController;
+use App\Modules\Fiscal\Http\Controllers\FiscalSettingsController;
+use App\Modules\Fulfillment\Http\Controllers\FulfillmentController;
+use App\Modules\Fulfillment\Http\Controllers\ShipmentController;
 use App\Modules\Inventory\Http\Controllers\InventoryController;
 use App\Modules\Inventory\Http\Controllers\InventoryLocationController;
 use App\Modules\Listings\Http\Controllers\ListingController;
 use App\Modules\Orders\Http\Controllers\OrderController;
+use App\Modules\Payments\Http\Controllers\OrderPaymentTermsController;
+use App\Modules\Payments\Http\Controllers\PaymentController;
+use App\Modules\Payments\Http\Controllers\PaymentSettingsController;
+use App\Modules\Payments\Http\Controllers\RefundController;
 use App\Modules\Pricing\Http\Controllers\PricingController;
+use App\Modules\Procurement\Http\Controllers\PurchaseOrderController;
+use App\Modules\Procurement\Http\Controllers\PurchaseOrderItemController;
+use App\Modules\Procurement\Http\Controllers\PurchaseReceiptController;
+use App\Modules\Procurement\Http\Controllers\PurchaseReceiptItemController;
+use App\Modules\Procurement\Http\Controllers\SupplierController;
+use App\Modules\Procurement\Http\Controllers\SupplierProductController;
 use App\Modules\Promotions\Http\Controllers\PromotionController;
+use App\Modules\Returns\Http\Controllers\ExchangeController;
+use App\Modules\Returns\Http\Controllers\ReturnController;
+use App\Modules\Returns\Http\Controllers\ReturnItemController;
 use App\Modules\Stores\Http\Controllers\StoreController;
+use App\Modules\Tax\Http\Controllers\TaxController;
+use App\Modules\Tenancy\Http\Controllers\AcceptTenantInvitationController;
+use App\Modules\Tenancy\Http\Controllers\AdminSettingsController;
+use App\Modules\Tenancy\Http\Controllers\TeamController;
 use App\Modules\Tenancy\Http\Controllers\TenantController;
+use App\Modules\Tenancy\Http\Controllers\TenantInvitationController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/', function () {
     if (! Auth::check()) {
@@ -74,6 +97,14 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
         ->name('logout');
 });
 
+Route::get('/invitations/{token}', [AcceptTenantInvitationController::class, 'show'])
+    ->where('token', '[A-Fa-f0-9]{64}')
+    ->name('invitations.show');
+Route::post('/invitations/{token}/accept', [AcceptTenantInvitationController::class, 'accept'])
+    ->middleware(['auth', 'auth.session', 'verified', 'throttle:invitation-accept'])
+    ->where('token', '[A-Fa-f0-9]{64}')
+    ->name('invitations.accept');
+
 Route::middleware(['auth', 'auth.session', 'verified'])
     ->prefix('admin')
     ->name('admin.')
@@ -90,9 +121,41 @@ Route::middleware(['auth', 'auth.session', 'verified'])
             Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
             Route::get('/stores/create', [StoreController::class, 'create'])->name('stores.create');
             Route::post('/stores', [StoreController::class, 'store'])->name('stores.store');
+            Route::get('/stores/{store}/edit', [StoreController::class, 'edit'])->whereUuid('store')->name('stores.edit');
+            Route::patch('/stores/{store}', [StoreController::class, 'update'])->whereUuid('store')->name('stores.update');
             Route::post('/stores/{store}/select', [StoreController::class, 'select'])
                 ->whereUuid('store')
                 ->name('stores.select');
+
+            Route::get('/settings', [AdminSettingsController::class, 'index'])
+                ->middleware('can:settings.view')->name('settings.index');
+            Route::get('/settings/general', [AdminSettingsController::class, 'general'])
+                ->middleware('can:settings.view')->name('settings.general.show');
+            Route::patch('/settings/general', [AdminSettingsController::class, 'update'])
+                ->middleware('can:settings.manage')->name('settings.general.update');
+            Route::get('/settings/team', [TeamController::class, 'index'])
+                ->middleware('can:members.view')->name('settings.team.index');
+            Route::post('/settings/team/invitations', [TenantInvitationController::class, 'store'])
+                ->middleware(['can:members.manage', 'throttle:tenant-invitations'])->name('settings.team.invitations.store');
+            Route::post('/settings/team/invitations/{invitation}/resend', [TenantInvitationController::class, 'resend'])
+                ->middleware(['can:members.manage', 'throttle:tenant-invitations'])->whereUuid('invitation')->name('settings.team.invitations.resend');
+            Route::post('/settings/team/invitations/{invitation}/revoke', [TenantInvitationController::class, 'revoke'])
+                ->middleware('can:members.manage')->whereUuid('invitation')->name('settings.team.invitations.revoke');
+            Route::patch('/settings/team/members/{member}/role', [TeamController::class, 'changeRole'])
+                ->middleware('can:members.manage')->whereUuid('member')->name('settings.team.members.role');
+            Route::post('/settings/team/members/{member}/deactivate', [TeamController::class, 'deactivate'])
+                ->middleware('can:members.manage')->whereUuid('member')->name('settings.team.members.deactivate');
+            Route::post('/settings/team/members/{member}/reactivate', [TeamController::class, 'reactivate'])
+                ->middleware('can:members.manage')->whereUuid('member')->name('settings.team.members.reactivate');
+
+            Route::get('/taxes', [TaxController::class, 'index'])->middleware('can:taxes.view')->name('taxes.index');
+            Route::post('/tax-categories', [TaxController::class, 'storeCategory'])->middleware('can:taxes.manage')->name('tax-categories.store');
+            Route::patch('/tax-categories/{taxCategory}', [TaxController::class, 'updateCategory'])->middleware('can:taxes.manage')->whereUuid('taxCategory')->name('tax-categories.update');
+            Route::post('/tax-rates', [TaxController::class, 'storeRate'])->middleware('can:taxes.manage')->name('tax-rates.store');
+            Route::patch('/tax-rates/{taxRate}', [TaxController::class, 'updateRate'])->middleware('can:taxes.manage')->whereUuid('taxRate')->name('tax-rates.update');
+
+            Route::get('/settings/fiscal', [FiscalSettingsController::class, 'show'])->middleware('can:fiscal_settings.view')->name('fiscal.settings.show');
+            Route::patch('/settings/fiscal', [FiscalSettingsController::class, 'update'])->middleware('can:fiscal_settings.manage')->name('fiscal.settings.update');
 
             Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
             Route::get('/customers/create', [CustomerController::class, 'create'])->name('customers.create');
@@ -167,13 +230,97 @@ Route::middleware(['auth', 'auth.session', 'verified'])
                 ->whereUuid('location')->name('inventory.locations.update');
             Route::post('/inventory/locations/{location}/make-default', [InventoryLocationController::class, 'makeDefault'])
                 ->whereUuid('location')->name('inventory.locations.make-default');
+
+            Route::get('/suppliers', [SupplierController::class, 'index'])->middleware('can:suppliers.view')->name('suppliers.index');
+            Route::get('/suppliers/create', [SupplierController::class, 'create'])->middleware('can:suppliers.create')->name('suppliers.create');
+            Route::post('/suppliers', [SupplierController::class, 'store'])->middleware('can:suppliers.create')->name('suppliers.store');
+            Route::get('/suppliers/{supplier}/edit', [SupplierController::class, 'edit'])->middleware('can:suppliers.view')->whereUuid('supplier')->name('suppliers.edit');
+            Route::match(['put', 'patch'], '/suppliers/{supplier}', [SupplierController::class, 'update'])->middleware('can:suppliers.update')->whereUuid('supplier')->name('suppliers.update');
+            Route::post('/suppliers/{supplier}/archive', [SupplierController::class, 'archive'])->middleware('can:suppliers.archive')->whereUuid('supplier')->name('suppliers.archive');
+            Route::post('/suppliers/{supplier}/products', [SupplierProductController::class, 'store'])->middleware('can:suppliers.update')->whereUuid('supplier')->name('suppliers.products.store');
+            Route::patch('/supplier-products/{supplierProduct}', [SupplierProductController::class, 'update'])->middleware('can:suppliers.update')->whereUuid('supplierProduct')->name('supplier-products.update');
+            Route::post('/supplier-products/{supplierProduct}/archive', [SupplierProductController::class, 'archive'])->middleware('can:suppliers.archive')->whereUuid('supplierProduct')->name('supplier-products.archive');
+
+            Route::get('/purchase-orders', [PurchaseOrderController::class, 'index'])->middleware('can:procurement.view')->name('purchase-orders.index');
+            Route::get('/purchase-orders/create', [PurchaseOrderController::class, 'create'])->middleware('can:procurement.manage')->name('purchase-orders.create');
+            Route::post('/purchase-orders', [PurchaseOrderController::class, 'store'])->middleware('can:procurement.manage')->name('purchase-orders.store');
+            Route::get('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->middleware('can:procurement.view')->whereUuid('purchaseOrder')->name('purchase-orders.show');
+            Route::patch('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'update'])->middleware('can:procurement.manage')->whereUuid('purchaseOrder')->name('purchase-orders.update');
+            Route::post('/purchase-orders/{purchaseOrder}/items', [PurchaseOrderItemController::class, 'store'])->middleware('can:procurement.manage')->whereUuid('purchaseOrder')->name('purchase-orders.items.store');
+            Route::patch('/purchase-order-items/{item}', [PurchaseOrderItemController::class, 'update'])->middleware('can:procurement.manage')->whereUuid('item')->name('purchase-order-items.update');
+            Route::delete('/purchase-order-items/{item}', [PurchaseOrderItemController::class, 'destroy'])->middleware('can:procurement.manage')->whereUuid('item')->name('purchase-order-items.destroy');
+            Route::post('/purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->middleware('can:procurement.approve')->whereUuid('purchaseOrder')->name('purchase-orders.approve');
+            Route::post('/purchase-orders/{purchaseOrder}/mark-ordered', [PurchaseOrderController::class, 'markOrdered'])->middleware('can:procurement.manage')->whereUuid('purchaseOrder')->name('purchase-orders.mark-ordered');
+            Route::post('/purchase-orders/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel'])->middleware('can:procurement.manage')->whereUuid('purchaseOrder')->name('purchase-orders.cancel');
+
+            Route::post('/purchase-orders/{purchaseOrder}/receipts', [PurchaseReceiptController::class, 'store'])->middleware('can:procurement.receive')->whereUuid('purchaseOrder')->name('purchase-orders.receipts.store');
+            Route::get('/purchase-receipts/{receipt}', [PurchaseReceiptController::class, 'show'])->middleware('can:procurement.view')->whereUuid('receipt')->name('purchase-receipts.show');
+            Route::patch('/purchase-receipts/{receipt}', [PurchaseReceiptController::class, 'update'])->middleware('can:procurement.receive')->whereUuid('receipt')->name('purchase-receipts.update');
+            Route::post('/purchase-receipts/{receipt}/items', [PurchaseReceiptItemController::class, 'store'])->middleware('can:procurement.receive')->whereUuid('receipt')->name('purchase-receipts.items.store');
+            Route::patch('/purchase-receipt-items/{item}', [PurchaseReceiptItemController::class, 'update'])->middleware('can:procurement.receive')->whereUuid('item')->name('purchase-receipt-items.update');
+            Route::delete('/purchase-receipt-items/{item}', [PurchaseReceiptItemController::class, 'destroy'])->middleware('can:procurement.receive')->whereUuid('item')->name('purchase-receipt-items.destroy');
+            Route::post('/purchase-receipts/{receipt}/post', [PurchaseReceiptController::class, 'post'])->middleware('can:procurement.receive')->whereUuid('receipt')->name('purchase-receipts.post');
+            Route::post('/purchase-receipts/{receipt}/cancel', [PurchaseReceiptController::class, 'cancel'])->middleware('can:procurement.receive')->whereUuid('receipt')->name('purchase-receipts.cancel');
         });
 
-        Route::get('/dashboard', fn () => Inertia::render('admin/Dashboard'))
+        Route::get('/dashboard', AdminDashboardController::class)
             ->middleware(['tenant', 'store'])
             ->name('dashboard');
 
         Route::middleware(['tenant', 'store'])->group(function () {
+            Route::get('/fiscal-documents', [FiscalDocumentController::class, 'index'])->middleware('can:fiscal_documents.view')->name('fiscal-documents.index');
+            Route::get('/fiscal-documents/{fiscalDocument}', [FiscalDocumentController::class, 'show'])->middleware('can:fiscal_documents.view')->whereUuid('fiscalDocument')->name('fiscal-documents.show');
+            Route::post('/fiscal-documents/{fiscalDocument}/submit-sunat', [FiscalDocumentController::class, 'submitSunat'])->middleware(['can:fiscal_documents.manage', 'throttle:sunat-submit'])->whereUuid('fiscalDocument')->name('fiscal-documents.submit-sunat');
+            Route::get('/fiscal-documents/{fiscalDocument}/submissions/{submission}/artifacts/{artifact}', [FiscalDocumentController::class, 'downloadArtifact'])->middleware('can:fiscal_documents.manage')->whereUuid(['fiscalDocument', 'submission'])->whereIn('artifact', ['signed-xml', 'cdr'])->name('fiscal-documents.artifacts.download');
+            Route::post('/orders/{order}/fiscal-document', [FiscalDocumentController::class, 'store'])->middleware('can:fiscal_documents.issue')->whereUuid('order')->name('orders.fiscal-document.store');
+
+            Route::post('/fiscal-series', [FiscalSeriesController::class, 'store'])->middleware('can:fiscal_settings.manage')->name('fiscal-series.store');
+            Route::patch('/fiscal-series/{fiscalSeries}', [FiscalSeriesController::class, 'update'])->middleware('can:fiscal_settings.manage')->whereUuid('fiscalSeries')->name('fiscal-series.update');
+
+            Route::get('/fulfillments', [FulfillmentController::class, 'index'])->middleware('can:fulfillments.view')->name('fulfillments.index');
+            Route::get('/fulfillments/{fulfillment}', [FulfillmentController::class, 'show'])->middleware('can:fulfillments.view')->whereUuid('fulfillment')->name('fulfillments.show');
+            Route::post('/orders/{order}/fulfillments', [FulfillmentController::class, 'store'])->middleware('can:fulfillments.manage')->whereUuid('order')->name('orders.fulfillments.store');
+            Route::post('/fulfillments/{fulfillment}/start', [FulfillmentController::class, 'start'])->middleware('can:fulfillments.manage')->whereUuid('fulfillment')->name('fulfillments.start');
+            Route::post('/fulfillments/{fulfillment}/complete', [FulfillmentController::class, 'complete'])->middleware('can:fulfillments.complete')->whereUuid('fulfillment')->name('fulfillments.complete');
+            Route::post('/fulfillments/{fulfillment}/cancel', [FulfillmentController::class, 'cancel'])->middleware('can:fulfillments.manage')->whereUuid('fulfillment')->name('fulfillments.cancel');
+            Route::post('/fulfillments/{fulfillment}/shipment', [ShipmentController::class, 'store'])->middleware('can:shipments.manage')->whereUuid('fulfillment')->name('fulfillments.shipment.store');
+            Route::post('/shipments/{shipment}/ready', [ShipmentController::class, 'ready'])->middleware('can:shipments.manage')->whereUuid('shipment')->name('shipments.ready');
+            Route::post('/shipments/{shipment}/ship', [ShipmentController::class, 'ship'])->middleware('can:shipments.manage')->whereUuid('shipment')->name('shipments.ship');
+            Route::post('/shipments/{shipment}/deliver', [ShipmentController::class, 'deliver'])->middleware('can:shipments.manage')->whereUuid('shipment')->name('shipments.deliver');
+            Route::post('/shipments/{shipment}/cancel', [ShipmentController::class, 'cancel'])->middleware('can:shipments.manage')->whereUuid('shipment')->name('shipments.cancel');
+
+            Route::get('/payments', [PaymentController::class, 'index'])->middleware('can:payments.view')->name('payments.index');
+            Route::get('/payments/{payment}', [PaymentController::class, 'show'])->middleware('can:payments.view')->whereUuid('payment')->name('payments.show');
+            Route::post('/orders/{order}/payments', [PaymentController::class, 'store'])->middleware('can:payments.manage')->whereUuid('order')->name('orders.payments.store');
+            Route::post('/payments/{payment}/capture', [PaymentController::class, 'capture'])->middleware('can:payments.capture')->whereUuid('payment')->name('payments.capture');
+            Route::post('/payments/{payment}/cancel', [PaymentController::class, 'cancel'])->middleware('can:payments.manage')->whereUuid('payment')->name('payments.cancel');
+            Route::match(['put', 'patch'], '/orders/{order}/payment-terms', [OrderPaymentTermsController::class, 'update'])->middleware('can:payments.manage')->whereUuid('order')->name('orders.payment-terms.update');
+            Route::get('/settings/payments', [PaymentSettingsController::class, 'show'])->middleware('can:payments.settings')->name('payments.settings.show');
+            Route::match(['put', 'patch'], '/settings/payments', [PaymentSettingsController::class, 'update'])->middleware('can:payments.settings')->name('payments.settings.update');
+
+            Route::get('/refunds', [RefundController::class, 'index'])->middleware('can:refunds.view')->name('refunds.index');
+            Route::get('/refunds/{refund}', [RefundController::class, 'show'])->middleware('can:refunds.view')->whereUuid('refund')->name('refunds.show');
+            Route::post('/payments/{payment}/refunds', [RefundController::class, 'store'])->middleware('can:refunds.manage')->whereUuid('payment')->name('payments.refunds.store');
+            Route::post('/refunds/{refund}/complete', [RefundController::class, 'complete'])->middleware('can:refunds.manage')->whereUuid('refund')->name('refunds.complete');
+
+            Route::get('/returns', [ReturnController::class, 'index'])->middleware('can:returns.view')->name('returns.index');
+            Route::get('/returns/{return}', [ReturnController::class, 'show'])->middleware('can:returns.view')->whereUuid('return')->name('returns.show');
+            Route::post('/orders/{order}/returns', [ReturnController::class, 'store'])->middleware('can:returns.manage')->whereUuid('order')->name('orders.returns.store');
+            Route::post('/returns/{return}/approve', [ReturnController::class, 'approve'])->middleware('can:returns.manage')->whereUuid('return')->name('returns.approve');
+            Route::post('/returns/{return}/reject', [ReturnController::class, 'reject'])->middleware('can:returns.manage')->whereUuid('return')->name('returns.reject');
+            Route::post('/returns/{return}/receive', [ReturnController::class, 'receive'])->middleware('can:returns.manage')->whereUuid('return')->name('returns.receive');
+            Route::post('/returns/{return}/complete', [ReturnController::class, 'complete'])->middleware('can:returns.manage')->whereUuid('return')->name('returns.complete');
+            Route::post('/returns/{return}/cancel', [ReturnController::class, 'cancel'])->middleware('can:returns.manage')->whereUuid('return')->name('returns.cancel');
+            Route::post('/return-items/{item}/inspect', [ReturnItemController::class, 'inspect'])->middleware('can:returns.inspect')->whereUuid('item')->name('return-items.inspect');
+            Route::post('/return-items/{item}/restock', [ReturnItemController::class, 'restock'])->middleware('can:returns.restock')->whereUuid('item')->name('return-items.restock');
+
+            Route::get('/exchanges', [ExchangeController::class, 'index'])->middleware('can:exchanges.view')->name('exchanges.index');
+            Route::get('/exchanges/{exchange}', [ExchangeController::class, 'show'])->middleware('can:exchanges.view')->whereUuid('exchange')->name('exchanges.show');
+            Route::post('/returns/{return}/exchanges', [ExchangeController::class, 'store'])->middleware('can:exchanges.manage')->whereUuid('return')->name('returns.exchanges.store');
+            Route::post('/exchanges/{exchange}/approve', [ExchangeController::class, 'approve'])->middleware('can:exchanges.manage')->whereUuid('exchange')->name('exchanges.approve');
+            Route::post('/exchanges/{exchange}/complete', [ExchangeController::class, 'complete'])->middleware('can:exchanges.manage')->whereUuid('exchange')->name('exchanges.complete');
+            Route::post('/exchanges/{exchange}/cancel', [ExchangeController::class, 'cancel'])->middleware('can:exchanges.manage')->whereUuid('exchange')->name('exchanges.cancel');
+
             Route::get('/orders', [OrderController::class, 'index'])->middleware('can:orders.view')->name('orders.index');
             Route::get('/orders/{order}', [OrderController::class, 'show'])->middleware('can:orders.view')->whereUuid('order')->name('orders.show');
             Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->middleware('can:orders.manage')->whereUuid('order')->name('orders.cancel');

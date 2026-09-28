@@ -132,6 +132,28 @@ class OrderLifecycleTest extends OrdersFeatureTestCase
         }
     }
 
+    public function test_missing_line_tax_snapshot_blocks_order_creation(): void
+    {
+        $tenant = $this->createTenantFor(User::factory()->create());
+        $store = $this->createStore($tenant);
+        [$checkout, $cart] = $this->pendingCheckout($store);
+        $ready = $this->makeReady($tenant, $checkout);
+        $ready->lines()->sole()->update([
+            'tax_category_code' => null, 'tax_rate' => null, 'taxable_amount' => null,
+            'exempt_amount' => null, 'unaffected_amount' => null, 'tax_amount' => null,
+        ]);
+
+        try {
+            app(CreateOrderFromCheckout::class)->handle($tenant, $store, $ready);
+            $this->fail('Order was created without a complete line tax snapshot.');
+        } catch (ValidationException $exception) {
+            $this->assertSame('CHECKOUT_TAX_SNAPSHOT_MISSING', $exception->errors()['tax'][0]);
+            $this->assertSame(CheckoutStatus::Ready, $ready->fresh()->status);
+            $this->assertSame(CartStatus::Active, $cart->fresh()->status);
+            $this->assertSame(0, Order::query()->count());
+        }
+    }
+
     public function test_cancel_is_idempotent_releases_reservations_and_preserves_checkout_and_cart(): void
     {
         $user = User::factory()->create();
@@ -148,7 +170,7 @@ class OrderLifecycleTest extends OrdersFeatureTestCase
         $this->assertSame(CheckoutStatus::Completed, $checkout->fresh()->status);
         $this->assertSame(CartStatus::Converted, $checkout->cart()->firstOrFail()->status);
         $this->assertSame(2, $cancelled->history()->count());
-        $history = $cancelled->history()->latest('created_at')->firstOrFail();
+        $history = $cancelled->history()->where('to_status', OrderStatus::Cancelled)->sole();
         $this->assertSame(OrderStatus::Confirmed, $history->from_status);
         $this->assertSame(OrderStatus::Cancelled, $history->to_status);
         $this->assertSame('Buyer requested cancellation.', $history->reason);

@@ -150,6 +150,9 @@ class CheckoutController extends Controller
             'subtotal_before_discounts' => $checkout->subtotal_before_discounts,
             'discount_total' => $checkout->discount_total, 'subtotal' => $checkout->subtotal,
             'shipping_total' => $checkout->shipping_total, 'tax_total' => $checkout->tax_total,
+            'taxable_amount' => $checkout->taxable_amount, 'exempt_amount' => $checkout->exempt_amount,
+            'unaffected_amount' => $checkout->unaffected_amount,
+            'tax_calculated_at' => $checkout->tax_calculated_at?->toISOString(),
             'grand_total' => $checkout->grand_total, 'expires_at' => $checkout->expires_at?->toISOString(),
             'created_at' => $checkout->created_at?->toISOString(),
             'order' => $checkout->order === null ? null : [
@@ -161,6 +164,9 @@ class CheckoutController extends Controller
                 'discount_unit_amount' => $line->discount_unit_amount, 'final_unit_price' => $line->final_unit_price,
                 'line_base_total' => $line->line_base_total, 'line_discount_total' => $line->line_discount_total,
                 'line_total' => $line->line_total, 'promotion_name' => $line->promotion_name,
+                'tax_category_code' => $line->tax_category_code, 'tax_rate' => $line->tax_rate,
+                'taxable_amount' => $line->taxable_amount, 'exempt_amount' => $line->exempt_amount,
+                'unaffected_amount' => $line->unaffected_amount, 'tax_amount' => $line->tax_amount,
                 'allocations' => $line->reservations->map(fn ($reservation): array => [
                     'location' => $reservation->location->name, 'code' => $reservation->location->code,
                     'quantity' => $reservation->quantity, 'status' => $reservation->status->value,

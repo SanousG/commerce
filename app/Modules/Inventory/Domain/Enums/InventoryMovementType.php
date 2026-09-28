@@ -10,4 +10,6 @@ enum InventoryMovementType: string
     case TransferIn = 'TRANSFER_IN';
     case TransferOut = 'TRANSFER_OUT';
     case ReservationCommit = 'RESERVATION_COMMIT';
+    case ReturnRestock = 'RETURN_RESTOCK';
+    case PurchaseReceipt = 'PURCHASE_RECEIPT';
 }

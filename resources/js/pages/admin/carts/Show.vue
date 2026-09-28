@@ -19,6 +19,12 @@ interface CartItem {
     line_base_total: string | null;
     line_discount: string | null;
     line_total: string | null;
+    tax_category_code: string | null;
+    tax_rate: string | null;
+    taxable_amount: string | null;
+    exempt_amount: string | null;
+    unaffected_amount: string | null;
+    tax_amount: string | null;
     applied_promotions: Promotion[];
     issues: string[];
 }
@@ -29,6 +35,10 @@ interface Cart {
     subtotal_before_discounts: string;
     discount_total: string;
     subtotal: string;
+    taxable_amount: string;
+    exempt_amount: string;
+    unaffected_amount: string;
+    tax_total: string;
     valid: boolean;
     items: CartItem[];
     store: string;
@@ -116,6 +126,7 @@ const clearCart = () => {
                 <article class="border border-[#17211b]/15 bg-[#f8f5ed] p-5"><p class="text-xs text-[#637067] uppercase">Discount</p><p class="mt-2 font-mono text-xl font-semibold tabular-nums">-{{ money(cart.discount_total) }}</p></article>
                 <article class="border p-5" :class="cart.valid ? 'border-emerald-700/30 bg-emerald-50' : 'border-red-800/30 bg-red-50'"><p class="text-xs uppercase" :class="cart.valid ? 'text-emerald-800' : 'text-red-800'">{{ cart.valid ? 'Valid subtotal' : 'Invalid subtotal' }}</p><p class="mt-2 font-mono text-xl font-semibold tabular-nums">{{ money(cart.subtotal) }}</p></article>
             </div>
+            <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><article v-for="row in [['Taxable base', cart.taxable_amount], ['Exempt', cart.exempt_amount], ['Unaffected', cart.unaffected_amount], ['Tax included', cart.tax_total]]" :key="row[0]" class="border border-[#17211b]/15 bg-white p-4"><p class="text-xs uppercase text-[#637067]">{{ row[0] }}</p><p class="mt-2 font-mono font-semibold">{{ money(row[1]) }}</p></article></div>
 
             <div v-if="canManage" class="mt-8 grid gap-6 lg:grid-cols-[2fr_1fr]">
                 <form class="border border-[#17211b]/15 bg-white p-5 sm:p-6" @submit.prevent="addItem">
@@ -143,7 +154,7 @@ const clearCart = () => {
                     <article v-for="item in cart.items" :key="item.id" class="border border-[#17211b]/15 bg-[#f8f5ed] p-5 sm:p-6">
                         <div class="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] lg:items-start">
                             <div><h3 class="text-xl font-semibold">{{ item.product }}</h3><p class="mt-1 text-sm text-[#637067]">{{ item.variant }} / <span class="font-mono">{{ item.sku }}</span></p><p class="mt-3 text-sm">Available: <strong class="tabular-nums">{{ item.available }}</strong></p><div v-if="item.applied_promotions.length" class="mt-3 flex flex-wrap gap-2"><span v-for="promotion in item.applied_promotions" :key="promotion.id" class="bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-900">{{ promotion.name }}</span></div><ul v-if="item.issues.length" class="mt-4 space-y-1 text-sm font-medium text-red-800"><li v-for="issue in item.issues" :key="issue">{{ issue }}</li></ul></div>
-                            <dl class="grid grid-cols-2 gap-x-5 gap-y-3 text-sm"><div><dt class="text-[#637067]">Base unit</dt><dd class="mt-1 font-mono tabular-nums">{{ money(item.base_unit_price) }}</dd></div><div><dt class="text-[#637067]">Final unit</dt><dd class="mt-1 font-mono tabular-nums">{{ money(item.final_unit_price) }}</dd></div><div><dt class="text-[#637067]">Base line</dt><dd class="mt-1 font-mono tabular-nums">{{ money(item.line_base_total) }}</dd></div><div><dt class="text-[#637067]">Line discount</dt><dd class="mt-1 font-mono tabular-nums">{{ discountMoney(item.line_discount) }}</dd></div><div><dt class="text-[#637067]">Line total</dt><dd class="mt-1 font-mono font-semibold tabular-nums">{{ money(item.line_total) }}</dd></div></dl>
+                            <dl class="grid grid-cols-2 gap-x-5 gap-y-3 text-sm"><div><dt class="text-[#637067]">Base unit</dt><dd class="mt-1 font-mono tabular-nums">{{ money(item.base_unit_price) }}</dd></div><div><dt class="text-[#637067]">Final unit</dt><dd class="mt-1 font-mono tabular-nums">{{ money(item.final_unit_price) }}</dd></div><div><dt class="text-[#637067]">Base line</dt><dd class="mt-1 font-mono tabular-nums">{{ money(item.line_base_total) }}</dd></div><div><dt class="text-[#637067]">Line discount</dt><dd class="mt-1 font-mono tabular-nums">{{ discountMoney(item.line_discount) }}</dd></div><div><dt class="text-[#637067]">Line total</dt><dd class="mt-1 font-mono font-semibold tabular-nums">{{ money(item.line_total) }}</dd></div><div><dt class="text-[#637067]">Tax</dt><dd class="mt-1 font-mono tabular-nums">{{ item.tax_category_code ?? 'Unconfigured' }}<template v-if="item.tax_rate"> / {{ item.tax_rate }}%</template><br>{{ money(item.tax_amount) }}</dd></div></dl>
                             <div v-if="canManage" class="flex flex-wrap gap-3 lg:w-48 lg:flex-col">
                                 <form class="flex min-w-0 gap-2" @submit.prevent="updateQuantity(item)"><label :for="`quantity-${item.id}`" class="sr-only">Quantity for {{ item.product }}</label><input :id="`quantity-${item.id}`" v-model.number="quantities[item.id]" min="1" max="9999" required type="number" class="min-w-0 w-20 border border-[#17211b]/25 bg-white px-3 py-2" /><button :disabled="updatingItem === item.id" class="border border-[#17211b] px-3 py-2 text-sm font-semibold disabled:opacity-60">Update</button></form>
                                 <button type="button" :disabled="deletingItem === item.id" class="w-fit text-sm font-semibold text-red-800 disabled:opacity-60" @click="removeItem(item)">{{ deletingItem === item.id ? 'Removing...' : 'Remove item' }}</button>

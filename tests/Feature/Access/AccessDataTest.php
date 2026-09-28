@@ -43,6 +43,13 @@ class AccessDataTest extends AccessFeatureTestCase
             'customers.view',
             'carts.view',
             'checkouts.view',
+            'fulfillments.view',
+            'shipments.view',
+            'returns.view',
+            'exchanges.view',
+            'suppliers.view',
+            'procurement.view',
+            'fiscal_documents.view',
         ];
 
         $this->assertEqualsCanonicalizing($all, $this->role(SystemRole::Owner)->permissions()->pluck('key')->all());

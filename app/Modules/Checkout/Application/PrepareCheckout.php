@@ -10,6 +10,7 @@ use App\Modules\Checkout\Domain\Enums\CheckoutStatus;
 use App\Modules\Checkout\Domain\Models\CheckoutSession;
 use App\Modules\Tenancy\Domain\Models\Tenant;
 use Brick\Math\BigDecimal;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -38,9 +39,14 @@ class PrepareCheckout
             if ($cart->items->isEmpty()) {
                 throw ValidationException::withMessages(['cart' => 'Checkout requires at least one cart item.']);
             }
-            $summary = $this->calculator->calculate($cart);
+            $taxCalculatedAt = CarbonImmutable::now('UTC');
+            $summary = $this->calculator->calculate($cart, $taxCalculatedAt);
             if (! $summary->valid || $summary->currency === null) {
-                throw ValidationException::withMessages(['cart' => 'The cart has issues and cannot be prepared.']);
+                $taxIssue = collect($summary->items)->flatMap(fn (array $item): array => $item['issues'])
+                    ->first(fn (string $issue): bool => str_starts_with($issue, 'TAX_'));
+                throw ValidationException::withMessages([
+                    $taxIssue === null ? 'cart' : 'tax' => $taxIssue ?? 'The cart has issues and cannot be prepared.',
+                ]);
             }
 
             $scoped->lines()->delete();
@@ -57,6 +63,9 @@ class PrepareCheckout
                     'final_unit_price' => $item['final_unit_price'], 'line_base_total' => $item['line_base_total'],
                     'line_discount_total' => $item['line_discount'], 'line_total' => $item['line_total'],
                     'currency' => $summary->currency,
+                    'tax_category_code' => $item['tax_category_code'], 'tax_rate' => $item['tax_rate'],
+                    'taxable_amount' => $item['taxable_amount'], 'exempt_amount' => $item['exempt_amount'],
+                    'unaffected_amount' => $item['unaffected_amount'], 'tax_amount' => $item['tax_amount'],
                 ]);
             }
 
@@ -66,7 +75,10 @@ class PrepareCheckout
                 'status' => CheckoutStatus::Ready, 'currency' => $summary->currency,
                 'subtotal_before_discounts' => $summary->subtotalBeforeDiscounts,
                 'discount_total' => $summary->discountTotal, 'subtotal' => $summary->subtotal,
-                'shipping_total' => '0.0000', 'tax_total' => '0.0000', 'grand_total' => $summary->subtotal,
+                'shipping_total' => '0.0000', 'tax_total' => $summary->taxTotal, 'grand_total' => $summary->subtotal,
+                'tax_snapshot_version' => 1, 'taxable_amount' => $summary->taxableAmount,
+                'exempt_amount' => $summary->exemptAmount, 'unaffected_amount' => $summary->unaffectedAmount,
+                'tax_calculated_at' => $taxCalculatedAt,
                 'expires_at' => $expiresAt,
             ]);
 

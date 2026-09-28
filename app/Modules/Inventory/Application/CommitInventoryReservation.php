@@ -24,19 +24,24 @@ class CommitInventoryReservation
             if ($scoped->status !== InventoryReservationStatus::Active) {
                 throw ValidationException::withMessages(['reservation' => 'Only an active reservation can be committed.']);
             }
+            $remaining = $scoped->quantity - $scoped->committed_quantity;
 
             $level = $this->levels->lock($tenant, $scoped->inventory_location_id, $scoped->product_variant_id);
             $this->writer->change(
                 $level,
-                -$scoped->quantity,
-                -$scoped->quantity,
+                -$remaining,
+                -$remaining,
                 InventoryMovementType::ReservationCommit,
                 $actor,
                 referenceType: 'RESERVATION',
                 referenceId: $scoped->getKey(),
                 correlationId: $scoped->getKey(),
             );
-            $scoped->update(['status' => InventoryReservationStatus::Committed, 'committed_at' => now()]);
+            $scoped->update([
+                'committed_quantity' => $scoped->quantity,
+                'status' => InventoryReservationStatus::Committed,
+                'committed_at' => now(),
+            ]);
 
             return $scoped;
         });

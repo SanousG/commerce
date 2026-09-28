@@ -18,8 +18,10 @@ class AccessMigrationTest extends AccessFeatureTestCase
         }
 
         $migration = require database_path('migrations/2026_09_08_000004_create_access_control_tables.php');
+        $invitationMigration = require database_path('migrations/2026_09_08_000046_create_tenant_invitations.php');
         $this->assertInstanceOf(Migration::class, $migration);
 
+        $invitationMigration->down();
         $migration->down();
 
         $this->assertTrue(Schema::hasColumn('tenant_members', 'role'));
@@ -30,6 +32,7 @@ class AccessMigrationTest extends AccessFeatureTestCase
         );
 
         $migration->up();
+        $invitationMigration->up();
 
         $this->assertFalse(Schema::hasColumn('tenant_members', 'role'));
         $this->assertTrue(Schema::hasColumn('tenant_members', 'role_id'));

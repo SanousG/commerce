@@ -21,6 +21,8 @@ defineProps<{
 
 const page = usePage<PageProps>();
 const canCreateStore = computed(() => page.props.currentTenantMembership?.permissions.includes('stores.create') ?? false);
+const canUpdateStore = computed(() => page.props.currentTenantMembership?.permissions.includes('stores.update') ?? false);
+const canSelectStore = computed(() => page.props.currentTenantMembership?.permissions.includes('stores.select') ?? false);
 </script>
 
 <template>
@@ -38,6 +40,8 @@ const canCreateStore = computed(() => page.props.currentTenantMembership?.permis
                 </Link>
             </div>
 
+            <p v-if="page.props.status" class="mt-6 border border-emerald-800/25 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{{ page.props.status }}</p>
+
             <div v-if="stores.length" class="mt-10 grid gap-4 sm:grid-cols-2">
                 <article v-for="store in stores" :key="store.id" class="flex min-h-56 flex-col justify-between border p-6" :class="store.selected ? 'border-emerald-700 bg-emerald-50' : 'border-[#17211b]/15 bg-[#f8f5ed]'">
                     <div>
@@ -49,15 +53,10 @@ const canCreateStore = computed(() => page.props.currentTenantMembership?.permis
                         <p class="mt-2 text-sm text-[#637067]">{{ store.slug }}</p>
                         <p class="mt-5 text-sm text-[#516057]">{{ store.currency }} / {{ store.timezone }} / {{ store.locale }}</p>
                     </div>
-                    <Link
-                        v-if="store.status === 'ACTIVE'"
-                        :href="`/admin/stores/${store.id}/select`"
-                        method="post"
-                        as="button"
-                        class="mt-8 w-full border border-[#17211b] px-4 py-3 text-sm font-semibold transition hover:bg-[#17211b] hover:text-white"
-                    >
-                        {{ store.selected ? 'Enter current store' : 'Enter store' }}
-                    </Link>
+                    <div v-if="(canSelectStore && store.status === 'ACTIVE') || canUpdateStore" class="mt-8 grid gap-2 sm:grid-cols-2">
+                        <Link v-if="canSelectStore && store.status === 'ACTIVE'" :href="`/admin/stores/${store.id}/select`" method="post" as="button" class="border border-[#17211b] px-4 py-3 text-center text-sm font-semibold transition hover:bg-[#17211b] hover:text-white">{{ store.selected ? 'Enter current store' : 'Enter store' }}</Link>
+                        <Link v-if="canUpdateStore && store.status !== 'ARCHIVED'" :href="`/admin/stores/${store.id}/edit`" class="border border-[#17211b]/25 px-4 py-3 text-center text-sm font-semibold hover:border-[#17211b]">Edit settings</Link>
+                    </div>
                     <p v-else class="mt-8 border border-[#17211b]/15 px-4 py-3 text-center text-sm text-[#637067]">Unavailable</p>
                 </article>
             </div>

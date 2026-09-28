@@ -1,6 +1,12 @@
 # Orders
 
-Orders are permanent commercial snapshots copied atomically from a non-expired `READY` Checkout. Creation never invokes pricing, promotion, cart calculation, customer-address resolution, or current catalog reads.
+Orders are permanent commercial snapshots copied atomically from a non-expired `READY` Checkout. Creation never invokes pricing, promotion, tax calculation, cart calculation, customer-address resolution, or current catalog reads.
+
+Tax snapshot version 1 includes category, rate, taxable/exempt/unaffected
+buckets and tax per item, plus matching Order aggregates and
+`tax_calculated_at`. `tax_total` is included within `subtotal`; it is not added
+to `grand_total`. Changing Product, Pricing, TaxCategory, or TaxRate after
+Checkout preparation cannot change an Order.
 
 Inventory reservations retain their `CHECKOUT_LINE` reference. `OrderItem.checkout_line_id` provides the stable path from an Order item to those reservations without mutating or duplicating them. Order creation leaves reservations `ACTIVE` and does not change `on_hand`; cancellation releases only active reservations belonging to the Order's checkout lines.
 

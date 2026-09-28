@@ -50,5 +50,27 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(6)->by((string) $key);
         });
+
+        RateLimiter::for('sunat-submit', function (Request $request) {
+            $user = $request->user();
+
+            return [
+                Limit::perMinute(10)->by('sunat-submit|'.($user?->getAuthIdentifier() ?? $request->ip())),
+                Limit::perMinute(30)->by('sunat-submit|'.$request->ip()),
+            ];
+        });
+
+        RateLimiter::for('tenant-invitations', function (Request $request) {
+            $tenant = $request->session()->get('current_tenant_id', 'none');
+            $user = $request->user()?->getAuthIdentifier() ?? $request->ip();
+
+            return [
+                Limit::perMinute(10)->by("tenant-invitations|{$tenant}|{$user}"),
+                Limit::perHour(50)->by("tenant-invitations|{$tenant}"),
+            ];
+        });
+
+        RateLimiter::for('invitation-accept', fn (Request $request) => Limit::perMinute(10)
+            ->by('invitation-accept|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
     }
 }

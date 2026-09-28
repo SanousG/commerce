@@ -108,6 +108,7 @@ class ProductController extends Controller
                 'slug' => $scopedProduct->slug,
                 'description' => $scopedProduct->description,
                 'status' => $scopedProduct->status->value,
+                'tax_category_id' => $scopedProduct->tax_category_id,
                 'category_ids' => $scopedProduct->categories->modelKeys(),
                 'options' => $scopedProduct->options->map(fn ($option) => [
                     'id' => $option->getKey(),
@@ -138,6 +139,12 @@ class ProductController extends Controller
                 'can_update' => $permissions->userCan($request->user(), PermissionKey::PricingUpdate),
             ],
             'categories' => $this->categoryChoices($context),
+            'taxCategories' => $request->user()->can('taxes.view') || $request->user()->can('taxes.manage')
+                ? $context->get()->taxCategories()->where('status', 'ACTIVE')->orderBy('name')
+                    ->get(['id', 'name', 'code'])->map(fn ($category): array => [
+                        'id' => $category->getKey(), 'name' => $category->name, 'code' => $category->code->value,
+                    ])->all()
+                : [],
             'productStatuses' => array_column(ProductStatus::cases(), 'value'),
             'variantStatuses' => array_column(ProductVariantStatus::cases(), 'value'),
         ]);
@@ -151,7 +158,7 @@ class ProductController extends Controller
     ): RedirectResponse {
         $scopedProduct = $context->get()->products()->findOrFail($product);
         $action->handle($context->get(), $scopedProduct, $request->safe()->only([
-            'name', 'description', 'status', 'categories',
+            'name', 'description', 'status', 'tax_category_id', 'categories',
         ]));
 
         return back()->with('status', 'Product updated.');

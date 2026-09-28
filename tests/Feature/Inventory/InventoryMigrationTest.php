@@ -18,7 +18,23 @@ class InventoryMigrationTest extends InventoryFeatureTestCase
     public function test_existing_tenants_receive_deterministic_default_and_schema_round_trips(): void
     {
         $migration = require database_path('migrations/2026_09_08_000009_create_inventory_tables.php');
+        $fulfillmentMigration = require database_path('migrations/2026_09_08_000024_create_fulfillment_tables.php');
+        $partialCommitMigration = require database_path('migrations/2026_09_08_000025_extend_inventory_reservations_for_partial_commits.php');
+        $returnMigration = require database_path('migrations/2026_09_08_000027_create_return_and_exchange_tables.php');
+        $refundMigration = require database_path('migrations/2026_09_08_000028_create_refunds_and_link_ledger.php');
+        $returnInventoryMigration = require database_path('migrations/2026_09_08_000029_add_return_inventory_support.php');
+        $purchaseReceiptMigration = require database_path('migrations/2026_09_08_000033_create_purchase_receipts.php');
+        $purchaseInventoryMigration = require database_path('migrations/2026_09_08_000034_add_purchase_receipt_inventory_support.php');
         $this->assertInstanceOf(Migration::class, $migration);
+        $this->assertInstanceOf(Migration::class, $fulfillmentMigration);
+        $this->assertInstanceOf(Migration::class, $partialCommitMigration);
+        $purchaseInventoryMigration->down();
+        $purchaseReceiptMigration->down();
+        $returnInventoryMigration->down();
+        $refundMigration->down();
+        $returnMigration->down();
+        $partialCommitMigration->down();
+        $fulfillmentMigration->down();
         $migration->down();
         $tenant = Tenant::create(['name' => 'Legacy', 'slug' => 'legacy-inventory', 'status' => TenantStatus::Active]);
         app(CreateDefaultPriceList::class)->handle($tenant);
@@ -26,6 +42,13 @@ class InventoryMigrationTest extends InventoryFeatureTestCase
         config()->set('commerce.default_inventory_location_code', ' legacy_01 ');
 
         $migration->up();
+        $fulfillmentMigration->up();
+        $partialCommitMigration->up();
+        $returnMigration->up();
+        $refundMigration->up();
+        $returnInventoryMigration->up();
+        $purchaseReceiptMigration->up();
+        $purchaseInventoryMigration->up();
         $firstId = InventoryLocation::query()->where('tenant_id', $tenant->getKey())->sole()->getKey();
         $this->assertTrue(Schema::hasTable('inventory_locations'));
         $this->assertTrue(Schema::hasTable('inventory_levels'));
@@ -38,8 +61,22 @@ class InventoryMigrationTest extends InventoryFeatureTestCase
             'status' => 'ACTIVE', 'is_default' => true,
         ]);
 
+        $purchaseInventoryMigration->down();
+        $purchaseReceiptMigration->down();
+        $returnInventoryMigration->down();
+        $refundMigration->down();
+        $returnMigration->down();
+        $partialCommitMigration->down();
+        $fulfillmentMigration->down();
         $migration->down();
         $migration->up();
+        $fulfillmentMigration->up();
+        $partialCommitMigration->up();
+        $returnMigration->up();
+        $refundMigration->up();
+        $returnInventoryMigration->up();
+        $purchaseReceiptMigration->up();
+        $purchaseInventoryMigration->up();
         $this->assertSame($firstId, InventoryLocation::query()->where('tenant_id', $tenant->getKey())->sole()->getKey());
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Inventory\Domain\Models;
 
+use App\Modules\Fulfillment\Domain\Models\Fulfillment;
 use App\Modules\Inventory\Domain\Enums\InventoryLocationStatus;
 use App\Modules\Tenancy\Domain\Models\Tenant;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -33,6 +34,11 @@ class InventoryLocation extends Model
     public function reservations(): HasMany
     {
         return $this->hasMany(InventoryReservation::class);
+    }
+
+    public function fulfillments(): HasMany
+    {
+        return $this->hasMany(Fulfillment::class);
     }
 
     protected function casts(): array

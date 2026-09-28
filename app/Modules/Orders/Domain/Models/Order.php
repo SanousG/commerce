@@ -5,9 +5,16 @@ namespace App\Modules\Orders\Domain\Models;
 use App\Modules\Cart\Domain\Models\Cart;
 use App\Modules\Checkout\Domain\Models\CheckoutSession;
 use App\Modules\Customers\Domain\Models\Customer;
+use App\Modules\Fiscal\Domain\Models\FiscalDocument;
+use App\Modules\Fulfillment\Domain\Models\Fulfillment;
+use App\Modules\Fulfillment\Domain\Models\Shipment;
 use App\Modules\Orders\Domain\Enums\OrderFulfillmentStatus;
 use App\Modules\Orders\Domain\Enums\OrderPaymentStatus;
 use App\Modules\Orders\Domain\Enums\OrderStatus;
+use App\Modules\Payments\Domain\Models\OrderPaymentPlan;
+use App\Modules\Payments\Domain\Models\Payment;
+use App\Modules\Payments\Domain\Models\Refund;
+use App\Modules\Returns\Domain\Models\ReturnRequest;
 use App\Modules\Stores\Domain\Models\Store;
 use App\Modules\Tenancy\Domain\Models\Tenant;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -15,6 +22,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'tenant_id', 'store_id', 'checkout_session_id', 'cart_id', 'customer_id', 'order_number', 'status',
@@ -24,7 +32,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'shipping_reference', 'billing_recipient_name', 'billing_phone', 'billing_country_code', 'billing_region',
     'billing_city', 'billing_district', 'billing_address_line_1', 'billing_address_line_2',
     'billing_postal_code', 'billing_reference', 'delivery_type', 'subtotal_before_discounts', 'discount_total',
-    'subtotal', 'shipping_total', 'tax_total', 'grand_total', 'placed_at', 'cancelled_at',
+    'subtotal', 'shipping_total', 'tax_total', 'grand_total', 'tax_snapshot_version', 'taxable_amount',
+    'exempt_amount', 'unaffected_amount', 'tax_calculated_at', 'placed_at', 'cancelled_at',
 ])]
 class Order extends Model
 {
@@ -65,6 +74,41 @@ class Order extends Model
         return $this->hasMany(OrderStatusHistory::class);
     }
 
+    public function fiscalDocuments(): HasMany
+    {
+        return $this->hasMany(FiscalDocument::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function paymentPlan(): HasOne
+    {
+        return $this->hasOne(OrderPaymentPlan::class);
+    }
+
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(Refund::class);
+    }
+
+    public function fulfillments(): HasMany
+    {
+        return $this->hasMany(Fulfillment::class);
+    }
+
+    public function shipments(): HasMany
+    {
+        return $this->hasMany(Shipment::class);
+    }
+
+    public function returns(): HasMany
+    {
+        return $this->hasMany(ReturnRequest::class);
+    }
+
     protected function casts(): array
     {
         return [
@@ -72,7 +116,10 @@ class Order extends Model
             'fulfillment_status' => OrderFulfillmentStatus::class,
             'subtotal_before_discounts' => 'decimal:4', 'discount_total' => 'decimal:4',
             'subtotal' => 'decimal:4', 'shipping_total' => 'decimal:4', 'tax_total' => 'decimal:4',
-            'grand_total' => 'decimal:4', 'placed_at' => 'immutable_datetime', 'cancelled_at' => 'immutable_datetime',
+            'grand_total' => 'decimal:4', 'tax_snapshot_version' => 'integer', 'taxable_amount' => 'decimal:4',
+            'exempt_amount' => 'decimal:4', 'unaffected_amount' => 'decimal:4',
+            'tax_calculated_at' => 'immutable_datetime', 'placed_at' => 'immutable_datetime',
+            'cancelled_at' => 'immutable_datetime',
         ];
     }
 }

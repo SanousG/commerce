@@ -22,6 +22,12 @@ class UpdateProductRequest extends CatalogRequest
             'name' => ['required', 'string', 'max:160'],
             'description' => ['nullable', 'string', 'max:10000'],
             'status' => ['required', Rule::enum(ProductStatus::class)],
+            'tax_category_id' => [
+                Rule::prohibitedIf(fn (): bool => ! ($this->user()?->can('taxes.manage') ?? false)),
+                'nullable',
+                'uuid',
+                Rule::exists('tax_categories', 'id')->where('tenant_id', $tenantId),
+            ],
             'categories' => ['sometimes', 'array', 'max:50'],
             'categories.*' => [
                 'uuid',

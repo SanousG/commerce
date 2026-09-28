@@ -18,7 +18,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'tenant_id', 'checkout_session_id', 'store_id', 'store_listing_id', 'product_id', 'product_variant_id',
     'price_list_id', 'promotion_id', 'product_name', 'variant_name', 'sku', 'quantity', 'base_unit_price',
     'discount_unit_amount', 'final_unit_price', 'line_base_total', 'line_discount_total', 'line_total',
-    'promotion_name', 'currency',
+    'promotion_name', 'currency', 'tax_category_code', 'tax_rate', 'taxable_amount', 'exempt_amount',
+    'unaffected_amount', 'tax_amount',
 ])]
 class CheckoutLine extends Model
 {
@@ -64,7 +65,9 @@ class CheckoutLine extends Model
         return [
             'quantity' => 'integer', 'base_unit_price' => 'decimal:4', 'discount_unit_amount' => 'decimal:4',
             'final_unit_price' => 'decimal:4', 'line_base_total' => 'decimal:4',
-            'line_discount_total' => 'decimal:4', 'line_total' => 'decimal:4',
+            'line_discount_total' => 'decimal:4', 'line_total' => 'decimal:4', 'tax_rate' => 'decimal:6',
+            'taxable_amount' => 'decimal:4', 'exempt_amount' => 'decimal:4', 'unaffected_amount' => 'decimal:4',
+            'tax_amount' => 'decimal:4',
         ];
     }
 }

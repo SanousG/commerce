@@ -36,7 +36,7 @@ class ReleaseCheckoutReservations
 
         foreach ($reservations as $reservation) {
             $level = $levels[$reservation->inventory_location_id.':'.$reservation->product_variant_id];
-            $level->reserved -= $reservation->quantity;
+            $level->reserved -= $reservation->remaining_quantity;
             $level->save();
             $reservation->update($terminalStatus === InventoryReservationStatus::Expired
                 ? ['status' => $terminalStatus, 'expired_at' => now()]

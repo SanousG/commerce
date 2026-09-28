@@ -9,7 +9,7 @@ use Illuminate\Validation\ValidationException;
 
 class UpdateProduct
 {
-    /** @param array{name: string, description?: ?string, status: string, categories?: list<string>} $attributes */
+    /** @param array{name: string, description?: ?string, status: string, tax_category_id?: ?string, categories?: list<string>} $attributes */
     public function handle(Tenant $tenant, Product $product, array $attributes): Product
     {
         return DB::transaction(function () use ($tenant, $product, $attributes): Product {
@@ -24,6 +24,9 @@ class UpdateProduct
                 'name' => $attributes['name'],
                 'description' => $attributes['description'] ?? null,
                 'status' => $attributes['status'],
+                ...array_key_exists('tax_category_id', $attributes)
+                    ? ['tax_category_id' => $attributes['tax_category_id']]
+                    : [],
             ]);
             $lockedProduct->categories()->sync(collect($categoryIds)->mapWithKeys(
                 fn (string $id): array => [$id => ['tenant_id' => $tenant->getKey()]],

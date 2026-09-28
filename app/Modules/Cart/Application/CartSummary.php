@@ -12,6 +12,10 @@ final readonly class CartSummary
         public string $subtotalBeforeDiscounts,
         public string $discountTotal,
         public string $subtotal,
+        public string $taxableAmount,
+        public string $exemptAmount,
+        public string $unaffectedAmount,
+        public string $taxTotal,
         public bool $valid,
         public array $items,
     ) {}
@@ -26,6 +30,10 @@ final readonly class CartSummary
             'subtotal_before_discounts' => $this->subtotalBeforeDiscounts,
             'discount_total' => $this->discountTotal,
             'subtotal' => $this->subtotal,
+            'taxable_amount' => $this->taxableAmount,
+            'exempt_amount' => $this->exemptAmount,
+            'unaffected_amount' => $this->unaffectedAmount,
+            'tax_total' => $this->taxTotal,
             'valid' => $this->valid,
             'items' => $this->items,
         ];

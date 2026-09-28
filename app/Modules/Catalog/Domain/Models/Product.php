@@ -4,6 +4,7 @@ namespace App\Modules\Catalog\Domain\Models;
 
 use App\Modules\Catalog\Domain\Enums\ProductStatus;
 use App\Modules\Listings\Domain\Models\StoreListing;
+use App\Modules\Tax\Domain\Models\TaxCategory;
 use App\Modules\Tenancy\Domain\Models\Tenant;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['tenant_id', 'name', 'slug', 'description', 'status'])]
+#[Fillable(['tenant_id', 'tax_category_id', 'name', 'slug', 'description', 'status'])]
 class Product extends Model
 {
     use HasUuids;
@@ -21,6 +22,11 @@ class Product extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function taxCategory(): BelongsTo
+    {
+        return $this->belongsTo(TaxCategory::class);
     }
 
     public function variants(): HasMany

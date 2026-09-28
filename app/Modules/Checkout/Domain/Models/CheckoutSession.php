@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'billing_phone', 'billing_country_code', 'billing_region', 'billing_city', 'billing_district',
     'billing_address_line_1', 'billing_address_line_2', 'billing_postal_code', 'billing_reference',
     'subtotal_before_discounts', 'discount_total', 'subtotal', 'shipping_total', 'tax_total', 'grand_total',
+    'tax_snapshot_version', 'taxable_amount', 'exempt_amount', 'unaffected_amount', 'tax_calculated_at',
     'expires_at', 'completed_at',
 ])]
 class CheckoutSession extends Model
@@ -67,6 +68,8 @@ class CheckoutSession extends Model
             'delivery_type' => CheckoutDeliveryType::class,
             'subtotal_before_discounts' => 'decimal:4', 'discount_total' => 'decimal:4', 'subtotal' => 'decimal:4',
             'shipping_total' => 'decimal:4', 'tax_total' => 'decimal:4', 'grand_total' => 'decimal:4',
+            'tax_snapshot_version' => 'integer', 'taxable_amount' => 'decimal:4', 'exempt_amount' => 'decimal:4',
+            'unaffected_amount' => 'decimal:4', 'tax_calculated_at' => 'immutable_datetime',
             'expires_at' => 'immutable_datetime', 'completed_at' => 'immutable_datetime',
         ];
     }

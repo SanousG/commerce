@@ -36,7 +36,7 @@ class OrderInventoryReservations
         )->all())->keyBy(fn (InventoryLevel $level): string => $level->inventory_location_id.':'.$level->product_variant_id);
         foreach ($reservations as $reservation) {
             $level = $levels[$reservation->inventory_location_id.':'.$reservation->product_variant_id];
-            $level->reserved -= $reservation->quantity;
+            $level->reserved -= $reservation->remaining_quantity;
             $level->save();
             $reservation->update(['status' => InventoryReservationStatus::Released, 'released_at' => now()]);
         }

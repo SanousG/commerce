@@ -6,24 +6,30 @@ import AdminLayout from '../../../layouts/AdminLayout.vue';
 import type { PageProps } from '../../../types';
 
 interface Choice { id: string; name: string }
+interface TaxCategoryChoice extends Choice { code: string }
 interface OptionValue { id: string; value: string }
 interface ProductOption { id: string; name: string; values: OptionValue[] }
 interface Variant { id: string; name: string | null; sku: string; barcode: string | null; status: string; is_default: boolean; option_value_ids: string[]; display_options: string[]; default_price: string | null }
-interface Product { id: string; name: string; slug: string; description: string | null; status: string; category_ids: string[]; options: ProductOption[]; variants: Variant[] }
+interface Product { id: string; name: string; slug: string; description: string | null; status: string; tax_category_id: string | null; category_ids: string[]; options: ProductOption[]; variants: Variant[] }
 interface Pricing { price_list_id: string; name: string; currency: string; can_update: boolean }
 
-const props = defineProps<{ product: Product; pricing: Pricing | null; categories: Choice[]; productStatuses: string[]; variantStatuses: string[] }>();
+const props = defineProps<{ product: Product; pricing: Pricing | null; categories: Choice[]; taxCategories: TaxCategoryChoice[]; productStatuses: string[]; variantStatuses: string[] }>();
 const page = usePage<PageProps>();
 const permissions = computed(() => page.props.currentTenantMembership?.permissions ?? []);
 const canUpdate = computed(() => permissions.value.includes('products.update'));
-const productForm = useForm({ name: props.product.name, description: props.product.description ?? '', status: props.product.status, categories: [...props.product.category_ids] });
+const canManageTaxes = computed(() => permissions.value.includes('taxes.manage'));
+const productForm = useForm({ name: props.product.name, description: props.product.description ?? '', status: props.product.status, tax_category_id: props.product.tax_category_id, categories: [...props.product.category_ids] });
 const optionValuesText = ref('');
 const optionForm = useForm({ name: '', values: [] as string[] });
 const variantForm = useForm({ name: '', sku: '', barcode: '', status: 'ACTIVE', is_default: false, option_value_ids: [] as string[] });
 const variantEdits = reactive(Object.fromEntries(props.product.variants.map((variant) => [variant.id, { ...variant, option_value_ids: [...variant.option_value_ids] }])) as Record<string, Variant>);
 const priceInputs = reactive(Object.fromEntries(props.product.variants.map((variant) => [variant.id, variant.default_price ?? ''])) as Record<string, string>);
 
-const updateProduct = () => productForm.put(`/admin/products/${props.product.id}`);
+const updateProduct = () => productForm
+    .transform((data) => canManageTaxes.value ? data : {
+        name: data.name, description: data.description, status: data.status, categories: data.categories,
+    })
+    .put(`/admin/products/${props.product.id}`);
 const createOption = () => { optionForm.values = optionValuesText.value.split(',').map((value) => value.trim()).filter(Boolean); optionForm.post(`/admin/products/${props.product.id}/options`, { onSuccess: () => { optionForm.reset(); optionValuesText.value = ''; } }); };
 const createVariant = () => variantForm.post(`/admin/products/${props.product.id}/variants`, { onSuccess: () => {
     variantForm.reset();
@@ -58,7 +64,7 @@ const formatPrice = (amount: string | null) => {
     <AdminLayout>
         <section>
             <div class="flex flex-wrap items-end justify-between gap-5"><div><p class="font-mono text-xs tracking-[0.2em] text-emerald-800 uppercase">{{ product.slug }}</p><h1 class="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">{{ product.name }}</h1></div><Link href="/admin/products" class="text-sm font-semibold text-emerald-800">Back to products</Link></div>
-            <form class="mt-10 grid gap-5 border border-[#17211b]/15 bg-[#f8f5ed] p-6 sm:p-8" @submit.prevent="updateProduct"><h2 class="text-2xl font-semibold">Product details</h2><input v-model="productForm.name" required maxlength="160" class="border border-[#17211b]/25 bg-white px-4 py-3" /><textarea v-model="productForm.description" rows="4" maxlength="10000" class="border border-[#17211b]/25 bg-white px-4 py-3" /><select v-model="productForm.status" class="border border-[#17211b]/25 bg-white px-4 py-3"><option v-for="status in productStatuses" :key="status">{{ status }}</option></select><div class="grid gap-2 sm:grid-cols-3"><label v-for="category in categories" :key="category.id" class="flex gap-2"><input v-model="productForm.categories" type="checkbox" :value="category.id" />{{ category.name }}</label></div><button v-if="canUpdate" :disabled="productForm.processing" class="w-fit bg-[#17211b] px-5 py-3 text-sm font-semibold text-white">Save product</button></form>
+            <form class="mt-10 grid gap-5 border border-[#17211b]/15 bg-[#f8f5ed] p-6 sm:p-8" @submit.prevent="updateProduct"><h2 class="text-2xl font-semibold">Product details</h2><input v-model="productForm.name" required maxlength="160" class="border border-[#17211b]/25 bg-white px-4 py-3" /><textarea v-model="productForm.description" rows="4" maxlength="10000" class="border border-[#17211b]/25 bg-white px-4 py-3" /><select v-model="productForm.status" class="border border-[#17211b]/25 bg-white px-4 py-3"><option v-for="status in productStatuses" :key="status">{{ status }}</option></select><label v-if="taxCategories.length" class="grid gap-2 text-sm font-semibold">Tax category<select v-model="productForm.tax_category_id" :disabled="!canManageTaxes" class="border border-[#17211b]/25 bg-white px-4 py-3 disabled:opacity-60"><option :value="null">Not configured</option><option v-for="taxCategory in taxCategories" :key="taxCategory.id" :value="taxCategory.id">{{ taxCategory.name }} / {{ taxCategory.code }}</option></select><FieldError :message="productForm.errors.tax_category_id" /></label><div class="grid gap-2 sm:grid-cols-3"><label v-for="category in categories" :key="category.id" class="flex gap-2"><input v-model="productForm.categories" type="checkbox" :value="category.id" />{{ category.name }}</label></div><button v-if="canUpdate" :disabled="productForm.processing" class="w-fit bg-[#17211b] px-5 py-3 text-sm font-semibold text-white">Save product</button></form>
 
             <div class="mt-8 grid gap-8 lg:grid-cols-2">
                 <form v-if="canUpdate" class="border border-[#17211b]/15 bg-white p-6" @submit.prevent="createOption"><h2 class="text-2xl font-semibold">Add option</h2><p class="mt-2 text-sm text-[#637067]">Example: Color with Negro, Blanco.</p><input v-model="optionForm.name" required maxlength="80" placeholder="Option name" class="mt-5 w-full border px-4 py-3" /><input v-model="optionValuesText" required placeholder="Comma-separated values" class="mt-3 w-full border px-4 py-3" /><FieldError :message="optionForm.errors.values" /><button :disabled="optionForm.processing" class="mt-4 bg-[#17211b] px-5 py-3 text-sm font-semibold text-white">Add option</button></form>

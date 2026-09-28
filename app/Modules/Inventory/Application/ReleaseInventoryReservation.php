@@ -23,7 +23,7 @@ class ReleaseInventoryReservation
 
             $this->assertActive($scoped);
             $level = $this->levels->lock($tenant, $scoped->inventory_location_id, $scoped->product_variant_id);
-            $level->update(['reserved' => $level->reserved - $scoped->quantity]);
+            $level->update(['reserved' => $level->reserved - $scoped->remaining_quantity]);
             $scoped->update(['status' => InventoryReservationStatus::Released, 'released_at' => now()]);
 
             return $scoped;
