@@ -20,13 +20,40 @@ class MediaAsset extends Model
 {
     use HasUuids;
 
-    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
-    public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by_user_id'); }
-    public function derivatives(): HasMany { return $this->hasMany(MediaDerivative::class); }
-    public function productMedia(): HasMany { return $this->hasMany(ProductMedia::class); }
-    public function productVariantMedia(): HasMany { return $this->hasMany(ProductVariantMedia::class); }
-    public function storeLogoSettings(): HasMany { return $this->hasMany(StoreSettings::class, 'logo_media_asset_id'); }
-    public function storeFaviconSettings(): HasMany { return $this->hasMany(StoreSettings::class, 'favicon_media_asset_id'); }
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    public function derivatives(): HasMany
+    {
+        return $this->hasMany(MediaDerivative::class);
+    }
+
+    public function productMedia(): HasMany
+    {
+        return $this->hasMany(ProductMedia::class);
+    }
+
+    public function productVariantMedia(): HasMany
+    {
+        return $this->hasMany(ProductVariantMedia::class);
+    }
+
+    public function storeLogoSettings(): HasMany
+    {
+        return $this->hasMany(StoreSettings::class, 'logo_media_asset_id');
+    }
+
+    public function storeFaviconSettings(): HasMany
+    {
+        return $this->hasMany(StoreSettings::class, 'favicon_media_asset_id');
+    }
 
     protected function casts(): array
     {

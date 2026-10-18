@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Application;
 
 use App\Models\User;
+use App\Modules\Access\Domain\Enums\PermissionKey;
 use App\Modules\Audit\Application\AuditRecorder;
 use App\Modules\Audit\Domain\Enums\AuditAction;
 use App\Modules\Audit\Domain\Enums\AuditActorType;
@@ -14,6 +15,9 @@ use App\Modules\Checkout\Domain\Enums\CheckoutStatus;
 use App\Modules\Checkout\Domain\Models\CheckoutSession;
 use App\Modules\Inventory\Domain\Enums\InventoryReservationStatus;
 use App\Modules\Inventory\Domain\Models\InventoryReservation;
+use App\Modules\Notifications\Application\OperationalNotificationPublisher;
+use App\Modules\Notifications\Domain\Enums\NotificationSeverity;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Orders\Domain\Enums\OrderFulfillmentStatus;
 use App\Modules\Orders\Domain\Enums\OrderPaymentStatus;
 use App\Modules\Orders\Domain\Enums\OrderStatus;
@@ -29,6 +33,7 @@ class CreateOrderFromCheckout
     public function __construct(
         private readonly GenerateOrderNumber $numbers,
         private readonly AuditRecorder $audit,
+        private readonly OperationalNotificationPublisher $notifications,
     ) {}
 
     public function handle(Tenant $tenant, Store $store, CheckoutSession $checkout, ?User $actor = null): Order
@@ -111,6 +116,13 @@ class CreateOrderFromCheckout
                 $actor,
                 idempotencyKey: 'order.created:'.$order->getKey(),
                 subjectLabel: $order->order_number,
+            );
+            $this->notifications->event(
+                $tenant->getKey(), $store->getKey(), [PermissionKey::OrdersView],
+                'order-placed:'.$order->getKey(), NotificationType::OrderPlaced, NotificationSeverity::Info,
+                'New order', 'There is a new order to review.',
+                '/admin/orders/'.$order->getKey(), ['order_id' => $order->getKey()],
+                AuditSubjectType::Order->value, (string) $order->getKey(),
             );
 
             return $order->fresh(['items', 'history']);

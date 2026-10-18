@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Modules\Inventory\Domain\Enums\InventoryMovementType;
 use App\Modules\Inventory\Domain\Models\InventoryLevel;
 use App\Modules\Inventory\Domain\Models\InventoryMovement;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
+use App\Modules\Notifications\Domain\Models\AdminNotification;
 use App\Modules\Pricing\Domain\Models\VariantPrice;
 use App\Modules\Procurement\Application\PostPurchaseReceipt;
 use App\Modules\Procurement\Application\UpdateSupplierProduct;
@@ -36,6 +38,11 @@ class PurchaseReceiptInventoryTest extends ProcurementFeatureTestCase
         ]);
         app(PostPurchaseReceipt::class)->handle($tenant, $first);
         $this->assertSame(PurchaseOrderStatus::PartiallyReceived, $order->fresh()->status);
+        $this->assertDatabaseHas('admin_notifications', [
+            'tenant_id' => $tenant->getKey(),
+            'deduplication_key' => 'event:purchase-receipt-posted:'.$first->getKey(),
+            'type' => NotificationType::PurchaseReceiptPosted->value,
+        ]);
 
         $second = $this->receipt($tenant, $order->fresh(), $location, $actor, 3, 'FULL');
         app(PostPurchaseReceipt::class)->handle($tenant, $second);
@@ -68,6 +75,8 @@ class PurchaseReceiptInventoryTest extends ProcurementFeatureTestCase
         app(PostPurchaseReceipt::class)->handle($tenant, $receipt->fresh());
 
         $this->assertSame($count, InventoryMovement::query()->where('type', InventoryMovementType::PurchaseReceipt)->count());
+        $this->assertSame(1, AdminNotification::query()
+            ->where('deduplication_key', 'event:purchase-receipt-posted:'.$receipt->getKey())->count());
         $this->assertSame(PurchaseReceiptStatus::Posted, $receipt->fresh()->status);
     }
 

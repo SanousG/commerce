@@ -8,9 +8,15 @@ use App\Modules\Tenancy\Application\TenantContext;
 use App\Modules\Tenancy\Domain\Enums\TenantMemberStatus;
 use App\Modules\Tenancy\Domain\Enums\TenantStatus;
 use App\Modules\Tenancy\Domain\Models\TenantMember;
+use Illuminate\Http\Request;
 
 class PermissionChecker
 {
+    /** @var array<string, TenantMember|null> */
+    private array $memberships = [];
+
+    private ?Request $request = null;
+
     public function __construct(private readonly TenantContext $tenantContext) {}
 
     public function userCan(User $user, PermissionKey|string $permission): bool
@@ -49,7 +55,20 @@ class PermissionChecker
             return null;
         }
 
-        return TenantMember::query()
+        $request = app(Request::class);
+
+        if ($this->request !== $request) {
+            $this->memberships = [];
+            $this->request = $request;
+        }
+
+        $key = $this->tenantContext->id().':'.$user->getKey();
+
+        if (array_key_exists($key, $this->memberships)) {
+            return $this->memberships[$key];
+        }
+
+        return $this->memberships[$key] = TenantMember::query()
             ->where('tenant_id', $this->tenantContext->id())
             ->where('user_id', $user->getKey())
             ->where('status', TenantMemberStatus::Active)

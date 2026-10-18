@@ -13,7 +13,10 @@ class MediaDerivative extends Model
 {
     use HasUuids;
 
-    public function mediaAsset(): BelongsTo { return $this->belongsTo(MediaAsset::class); }
+    public function mediaAsset(): BelongsTo
+    {
+        return $this->belongsTo(MediaAsset::class);
+    }
 
     protected function casts(): array
     {

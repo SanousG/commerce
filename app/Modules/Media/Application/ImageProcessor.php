@@ -95,7 +95,9 @@ class ImageProcessor
         if (in_array($orientation, [2, 4, 5, 7], true)) {
             imageflip($image, in_array($orientation, [2, 5, 7], true) ? IMG_FLIP_HORIZONTAL : IMG_FLIP_VERTICAL);
         }
-        $angle = match ($orientation) { 3, 4 => 180, 5, 6 => -90, 7, 8 => 90, default => 0 };
+        $angle = match ($orientation) {
+            3, 4 => 180, 5, 6 => -90, 7, 8 => 90, default => 0
+        };
         if ($angle !== 0) {
             $rotated = imagerotate($image, $angle, 0);
             if ($rotated instanceof GdImage) {

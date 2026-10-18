@@ -21,6 +21,7 @@ use App\Modules\Orders\Domain\Models\OrderItem;
 use App\Modules\Orders\Domain\Models\OrderStatusHistory;
 use App\Modules\Orders\Http\Requests\CancelOrderRequest;
 use App\Modules\Orders\Http\Requests\CreateOrderRequest;
+use App\Modules\Orders\Http\Requests\OrderIndexRequest;
 use App\Modules\Payments\Application\OrderPaymentCalculator;
 use App\Modules\Payments\Domain\Enums\PaymentStatus;
 use App\Modules\Payments\Domain\Enums\PaymentTerms;
@@ -29,6 +30,7 @@ use App\Modules\Payments\Domain\Enums\PaymentTransactionType;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Payments\Domain\Models\PaymentTransaction;
 use App\Modules\Payments\Domain\Models\StorePaymentSettings;
+use App\Modules\Returns\Domain\Models\ReturnRequest;
 use App\Modules\Stores\Application\StoreContext;
 use App\Modules\Tenancy\Application\TenantContext;
 use Brick\Math\BigDecimal;
@@ -44,12 +46,16 @@ class OrderController extends Controller
         'address_line_2', 'postal_code', 'reference',
     ];
 
-    public function index(Request $request, TenantContext $tenants, StoreContext $stores): Response
+    public function index(OrderIndexRequest $request, TenantContext $tenants, StoreContext $stores): Response
     {
-        $search = trim((string) $request->query('search'));
-        $status = $this->enumFilter((string) $request->query('status'), OrderStatus::cases());
-        $paymentStatus = $this->enumFilter((string) $request->query('payment_status'), OrderPaymentStatus::cases());
-        $fulfillmentStatus = $this->enumFilter((string) $request->query('fulfillment_status'), OrderFulfillmentStatus::cases());
+        $filters = $request->validated();
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? '';
+        $paymentStatus = $filters['payment_status'] ?? '';
+        $fulfillmentStatus = $filters['fulfillment_status'] ?? '';
+        $customerId = $filters['customer_id'] ?? '';
+        $from = $filters['from'] ?? '';
+        $to = $filters['to'] ?? '';
         $orders = $stores->get()->orders()->where('tenant_id', $tenants->id())
             ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->where('order_number', 'ilike', "%{$search}%")
@@ -58,9 +64,13 @@ class OrderController extends Controller
             ->when($status !== '', fn ($query) => $query->where('status', $status))
             ->when($paymentStatus !== '', fn ($query) => $query->where('payment_status', $paymentStatus))
             ->when($fulfillmentStatus !== '', fn ($query) => $query->where('fulfillment_status', $fulfillmentStatus))
+            ->when($customerId !== '', fn ($query) => $query->where('customer_id', $customerId))
+            ->when($from !== '', fn ($query) => $query->where('placed_at', '>=', $from.' 00:00:00'))
+            ->when($to !== '', fn ($query) => $query->where('placed_at', '<=', $to.' 23:59:59.999999'))
             ->orderByDesc('placed_at')->paginate(20)->withQueryString();
         $orders->through(fn (Order $order): array => [
             'id' => $order->getKey(), 'order_number' => $order->order_number,
+            'customer_id' => $order->customer_id,
             'customer_name' => $order->customer_name ?: 'Guest', 'email' => $order->email,
             'status' => $order->status->value, 'payment_status' => $order->payment_status->value,
             'fulfillment_status' => $order->fulfillment_status->value, 'currency' => $order->currency,
@@ -71,8 +81,12 @@ class OrderController extends Controller
             'orders' => $orders,
             'filters' => [
                 'search' => $search, 'status' => $status, 'payment_status' => $paymentStatus,
-                'fulfillment_status' => $fulfillmentStatus,
+                'fulfillment_status' => $fulfillmentStatus, 'customer_id' => $customerId,
+                'from' => $from, 'to' => $to,
             ],
+            'statuses' => array_column(OrderStatus::cases(), 'value'),
+            'paymentStatuses' => array_column(OrderPaymentStatus::cases(), 'value'),
+            'fulfillmentStatuses' => array_column(OrderFulfillmentStatus::cases(), 'value'),
         ]);
     }
 
@@ -87,26 +101,72 @@ class OrderController extends Controller
     ): Response {
         $scoped = $this->order($tenants, $stores, $order);
         $scoped->load(['items', 'history.actor']);
-        $canViewPayments = $request->user()->can('payments.view');
-        $canViewFulfillments = $request->user()->can('fulfillments.view');
-        $canViewFiscalDocuments = $request->user()->can('fiscal_documents.view');
+        $user = $request->user();
+        $canViewPayments = $user->can('payments.view');
+        $canViewFulfillments = $user->can('fulfillments.view');
+        $canViewShipments = $user->can('shipments.view');
+        $canViewFiscalDocuments = $user->can('fiscal_documents.view');
+        $canViewRefunds = $user->can('refunds.view');
+        $canViewReturns = $user->can('returns.view');
+        $canViewCustomers = $user->can('customers.view');
         $balance = $paymentCalculator->calculate($scoped);
         if ($canViewPayments) {
             $scoped->load(['paymentPlan', 'payments.transactions']);
         }
         if ($canViewFulfillments) {
             $scoped->load('items.reservations.location');
+            $scoped->loadCount('fulfillments');
         }
+        if ($canViewRefunds) {
+            $scoped->loadCount('refunds');
+        }
+        if ($canViewReturns) {
+            $scoped->load(['returns' => fn ($query) => $query->withCount('items')->orderByDesc('requested_at')]);
+        }
+        if ($canViewCustomers && $scoped->customer_id !== null) {
+            $scoped->load('customer:id,first_name,last_name,email,phone');
+        }
+        $customer = $canViewCustomers && $scoped->customer_id !== null ? $scoped->customer : null;
 
         return Inertia::render('admin/orders/Show', [
             'order' => $this->serialize($scoped, $canViewFulfillments),
+            'customer' => $customer === null ? null : [
+                'id' => $customer->getKey(),
+                'display_name' => $customer->displayName(),
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+            ],
+            'returns' => $canViewReturns
+                ? $scoped->returns->map(fn (ReturnRequest $item): array => [
+                    'id' => $item->getKey(),
+                    'short_id' => substr((string) $item->getKey(), 0, 8),
+                    'status' => $item->status->value,
+                    'requested_at' => $item->requested_at?->toISOString(),
+                    'item_count' => (int) $item->items_count,
+                ])->values()
+                : null,
+            'relatedLinks' => [
+                'customer' => $customer === null ? null : url('/admin/customers/'.$customer->getKey()),
+                'payments' => $canViewPayments && $scoped->payments->isNotEmpty()
+                    ? url('/admin/payments').'?order_id='.$scoped->getKey()
+                    : null,
+                'refunds' => $canViewRefunds && (int) $scoped->refunds_count > 0
+                    ? url('/admin/refunds').'?order_id='.$scoped->getKey()
+                    : null,
+                'returns' => $canViewReturns && $scoped->returns->isNotEmpty()
+                    ? url('/admin/returns').'?order_id='.$scoped->getKey()
+                    : null,
+                'fulfillments' => $canViewFulfillments && $canViewShipments && (int) $scoped->fulfillments_count > 0
+                    ? url('/admin/fulfillments').'?order_id='.$scoped->getKey()
+                    : null,
+            ],
             'canCancel' => $request->user()->can('orders.manage')
                 && $scoped->status === OrderStatus::Confirmed
                 && $scoped->fulfillment_status === OrderFulfillmentStatus::Unfulfilled
                 && $balance->capturedTotal === '0.0000',
             'paymentData' => $canViewPayments ? $this->paymentData($scoped, $balance->toArray(), $request) : null,
             'fulfillmentData' => $canViewFulfillments
-                ? $this->fulfillmentData($scoped, $fulfillmentPaymentEligibility, $request)
+                ? $this->fulfillmentData($scoped, $fulfillmentPaymentEligibility, $request, $canViewShipments)
                 : null,
             'fiscalData' => $canViewFiscalDocuments ? $this->fiscalData($scoped, $request) : null,
             'profitability' => $request->user()->can('inventory.cost.view') ? $profitability->build($scoped) : null,
@@ -142,13 +202,6 @@ class OrderController extends Controller
     private function order(TenantContext $tenants, StoreContext $stores, string $id): Order
     {
         return $stores->get()->orders()->where('tenant_id', $tenants->id())->findOrFail($id);
-    }
-
-    private function enumFilter(string $value, array $cases): string
-    {
-        $value = trim($value);
-
-        return collect($cases)->contains(fn ($case): bool => $case->value === $value) ? $value : '';
     }
 
     private function serialize(Order $order, bool $withReservations = true): array
@@ -279,10 +332,12 @@ class OrderController extends Controller
         Order $order,
         FulfillmentPaymentEligibility $paymentEligibility,
         Request $request,
+        bool $canViewShipments,
     ): array {
         $fulfillments = Fulfillment::query()->where('tenant_id', $order->tenant_id)
             ->where('store_id', $order->store_id)->where('order_id', $order->getKey())
-            ->with(['location:id,name,code', 'items:id,fulfillment_id,quantity', 'shipment:id,fulfillment_id,status'])
+            ->with(['location:id,name,code', 'items:id,fulfillment_id,quantity'])
+            ->when($canViewShipments, fn ($query) => $query->with('shipment:id,fulfillment_id,status'))
             ->orderByDesc('created_at')->get();
         $reservationIds = $order->items->flatMap(fn (OrderItem $item) => $item->reservations)->pluck('id');
         $allocated = FulfillmentItem::query()->join('fulfillments', 'fulfillments.id', '=', 'fulfillment_items.fulfillment_id')
@@ -324,18 +379,25 @@ class OrderController extends Controller
                 'remaining_quantity' => $orderedQuantity - $fulfilledQuantity,
                 'status' => $order->fulfillment_status->value,
             ],
-            'fulfillments' => $fulfillments->map(fn (Fulfillment $fulfillment): array => [
-                'id' => $fulfillment->getKey(), 'status' => $fulfillment->status->value,
-                'location_name' => $fulfillment->location->name, 'location_code' => $fulfillment->location->code,
-                'item_count' => $fulfillment->items->count(), 'total_quantity' => $fulfillment->items->sum('quantity'),
-                'shipment_status' => $fulfillment->shipment?->status->value,
-                'created_at' => $fulfillment->created_at?->toISOString(),
-            ])->values(),
+            'fulfillments' => $fulfillments->map(function (Fulfillment $fulfillment) use ($canViewShipments): array {
+                $data = [
+                    'id' => $fulfillment->getKey(), 'status' => $fulfillment->status->value,
+                    'location_name' => $fulfillment->location->name, 'location_code' => $fulfillment->location->code,
+                    'item_count' => $fulfillment->items->count(), 'total_quantity' => $fulfillment->items->sum('quantity'),
+                    'created_at' => $fulfillment->created_at?->toISOString(),
+                ];
+
+                if ($canViewShipments) {
+                    $data['shipment_status'] = $fulfillment->shipment?->status->value;
+                }
+
+                return $data;
+            })->values(),
             'available_locations' => $available,
             'payment_eligibility' => $eligibility,
             'can_manage' => $request->user()->can('fulfillments.manage'),
             'can_complete' => $request->user()->can('fulfillments.complete'),
-            'can_manage_shipments' => $request->user()->can('shipments.manage'),
+            'can_manage_shipments' => $canViewShipments && $request->user()->can('shipments.manage'),
         ];
     }
 }

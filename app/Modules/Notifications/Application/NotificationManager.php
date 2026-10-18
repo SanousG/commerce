@@ -14,6 +14,11 @@ use InvalidArgumentException;
 
 final class NotificationManager
 {
+    public function __construct(
+        private readonly NotificationPreferences $preferences,
+        private readonly AdminNotificationEmailDispatcher $emails,
+    ) {}
+
     /** @param iterable<int|string> $recipientUserIds
      * @return Collection<int, AdminNotification>
      */
@@ -31,7 +36,7 @@ final class NotificationManager
         ?string $subjectType = null,
         ?string $subjectId = null,
     ): Collection {
-        return $this->deliver($tenantId, $storeId, $recipientUserIds, $this->deduplicationKey('event', $eventKey), $type, $severity, $title, $message, $actionUrl, $metadata, $subjectType, $subjectId);
+        return $this->deliver($tenantId, $storeId, $recipientUserIds, $this->deduplicationKey('event', $eventKey), $type, $severity, $title, $message, $actionUrl, $metadata, $subjectType, $subjectId, true);
     }
 
     /** @param iterable<int|string> $recipientUserIds
@@ -51,7 +56,7 @@ final class NotificationManager
         ?string $subjectType = null,
         ?string $subjectId = null,
     ): Collection {
-        return $this->deliver($tenantId, $storeId, $recipientUserIds, $this->deduplicationKey('condition', $conditionKey), $type, $severity, $title, $message, $actionUrl, $metadata, $subjectType, $subjectId);
+        return $this->deliver($tenantId, $storeId, $recipientUserIds, $this->deduplicationKey('condition', $conditionKey), $type, $severity, $title, $message, $actionUrl, $metadata, $subjectType, $subjectId, false);
     }
 
     public function resolveKey(string $tenantId, ?string $storeId, string $deduplicationKey): int
@@ -98,6 +103,7 @@ final class NotificationManager
         array $metadata,
         ?string $subjectType,
         ?string $subjectId,
+        bool $permanentIdempotency,
     ): Collection {
         $title = trim($title);
         $message = trim($message);
@@ -120,15 +126,33 @@ final class NotificationManager
             ->where('tenant_members.status', TenantMemberStatus::Active->value)
             ->where('tenants.status', TenantStatus::Active->value)
             ->pluck('tenant_members.user_id')
-            ->map(fn ($id): int => (int) $id);
+            ->map(fn ($id): int => (int) $id)
+            ->values();
+
+        // Recipients that muted this type are dropped before any row is written.
+        $recipientIds = $this->preferences->filterRecipients($tenantId, $recipientIds, $type);
 
         if ($recipientIds->isEmpty()) {
             return collect();
         }
 
+        $existingQuery = $permanentIdempotency
+            ? AdminNotification::query()
+                ->where('tenant_id', $tenantId)
+                ->when($storeId === null, fn ($query) => $query->whereNull('store_id'), fn ($query) => $query->where('store_id', $storeId))
+            : $this->activeScope($tenantId, $storeId);
+        $existingRecipientIds = $existingQuery
+            ->whereIn('recipient_user_id', $recipientIds)
+            ->where('deduplication_key', $deduplicationKey)
+            ->pluck('recipient_user_id')
+            ->map(fn ($id): int => (int) $id);
+
+        $notificationIds = $recipientIds->mapWithKeys(fn (int $recipientId): array => [$recipientId => (string) Str::uuid7()]);
+
         $now = now();
-        DB::table('admin_notifications')->insertOrIgnore($recipientIds->map(fn (int $recipientId): array => [
-            'id' => (string) Str::uuid7(),
+        $newRecipientIds = $recipientIds->diff($existingRecipientIds)->values();
+        DB::table('admin_notifications')->insertOrIgnore($newRecipientIds->map(fn (int $recipientId): array => [
+            'id' => $notificationIds[$recipientId],
             'tenant_id' => $tenantId,
             'store_id' => $storeId,
             'recipient_user_id' => $recipientId,
@@ -145,7 +169,11 @@ final class NotificationManager
             'updated_at' => $now,
         ])->all());
 
-        $notifications = $this->activeScope($tenantId, $storeId)
+        $notifications = ($permanentIdempotency
+            ? AdminNotification::query()
+                ->where('tenant_id', $tenantId)
+                ->when($storeId === null, fn ($query) => $query->whereNull('store_id'), fn ($query) => $query->where('store_id', $storeId))
+            : $this->activeScope($tenantId, $storeId))
             ->whereIn('recipient_user_id', $recipientIds)
             ->where('deduplication_key', $deduplicationKey)
             ->get();
@@ -163,6 +191,20 @@ final class NotificationManager
                 'metadata' => $metadata,
                 'read_at' => $escalated ? null : $notification->read_at,
             ])->save();
+        }
+
+        $newNotificationIds = $newRecipientIds
+            ->mapWithKeys(fn (int $recipientId): array => [$recipientId => $notificationIds[$recipientId]])
+            ->all();
+
+        if ($newNotificationIds !== []) {
+            DB::afterCommit(function () use ($newNotificationIds, $tenantId, $type): void {
+                try {
+                    $this->emails->dispatchForNewRecipients($newNotificationIds, $tenantId, $type);
+                } catch (\Throwable $exception) {
+                    report($exception);
+                }
+            });
         }
 
         return $notifications;

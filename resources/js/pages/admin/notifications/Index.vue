@@ -98,9 +98,12 @@ const markAllRead = () => mutate('read-all', '/admin/notifications/read-all');
                     <h1 class="text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">Notificaciones</h1>
                     <p class="mt-3 max-w-2xl text-[#637067]">Alertas operativas y tareas que requieren tu atención.</p>
                 </div>
-                <button type="button" :disabled="pendingAction === 'read-all'" class="border border-[#17211b] bg-white px-4 py-3 text-sm font-semibold disabled:opacity-50" @click="markAllRead">
-                    {{ pendingAction === 'read-all' ? 'Marcando…' : 'Marcar todas como leídas' }}
-                </button>
+                <div class="flex flex-wrap items-center gap-3">
+                    <Link href="/admin/settings/notifications" class="border border-[#17211b]/25 bg-white px-4 py-3 text-sm font-semibold">Preferencias</Link>
+                    <button type="button" :disabled="pendingAction === 'read-all'" class="border border-[#17211b] bg-white px-4 py-3 text-sm font-semibold disabled:opacity-50" @click="markAllRead">
+                        {{ pendingAction === 'read-all' ? 'Marcando…' : 'Marcar todas como leídas' }}
+                    </button>
+                </div>
             </div>
 
             <form class="mt-8 grid gap-5 border border-[#17211b]/15 bg-white p-5 lg:grid-cols-[1fr_1fr_auto] lg:items-end" @submit.prevent="applyFilters">

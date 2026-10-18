@@ -89,6 +89,12 @@ const sections: Array<{ label: string; items: NavItem[] }> = [
                     <Link v-if="permissions.includes('stores.view')" href="/admin/stores" :class="active('/admin/stores') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Stores</Link>
                     <Link v-if="permissions.includes('stores.view') && currentStore" :href="`/admin/stores/${currentStore.id}/settings`" :class="page.url.includes('/stores/') && page.url.endsWith('/settings') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Current store settings</Link>
                     <Link v-if="permissions.includes('members.view')" href="/admin/settings/team" :class="active('/admin/settings/team') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Team &amp; Access</Link>
+                    <Link href="/admin/settings/notifications" :class="active('/admin/settings/notifications') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Notifications</Link>
+                </div>
+                <div class="shrink-0">
+                    <p class="mb-2 text-[10px] font-semibold tracking-[0.2em] text-white/35 uppercase">Notifications</p>
+                    <Link href="/admin/notifications" :class="active('/admin/notifications') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Inbox</Link>
+                    <Link href="/admin/settings/notifications" :class="active('/admin/settings/notifications') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Preferences</Link>
                 </div>
             </nav>
 

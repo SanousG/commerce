@@ -3,6 +3,7 @@
 namespace App\Modules\Fulfillment\Application;
 
 use App\Models\User;
+use App\Modules\Access\Domain\Enums\PermissionKey;
 use App\Modules\Audit\Application\AuditRecorder;
 use App\Modules\Audit\Domain\Enums\AuditAction;
 use App\Modules\Audit\Domain\Enums\AuditActorType;
@@ -16,6 +17,9 @@ use App\Modules\Inventory\Domain\Enums\InventoryMovementType;
 use App\Modules\Inventory\Domain\Enums\InventoryReservationStatus;
 use App\Modules\Inventory\Domain\Models\InventoryLevel;
 use App\Modules\Inventory\Domain\Models\InventoryReservation;
+use App\Modules\Notifications\Application\OperationalNotificationPublisher;
+use App\Modules\Notifications\Domain\Enums\NotificationSeverity;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Orders\Domain\Enums\OrderStatus;
 use App\Modules\Orders\Domain\Models\Order;
 use App\Modules\Tenancy\Domain\Models\Tenant;
@@ -33,6 +37,7 @@ class CompleteFulfillment
         private readonly FulfillmentPaymentEligibility $paymentEligibility,
         private readonly OrderFulfillmentStatusUpdater $statusUpdater,
         private readonly AuditRecorder $audit,
+        private readonly OperationalNotificationPublisher $notifications,
     ) {}
 
     public function handle(Tenant $tenant, Fulfillment $fulfillment, ?User $actor = null): Fulfillment
@@ -125,6 +130,13 @@ class CompleteFulfillment
                 actor: $actor,
                 idempotencyKey: 'fulfillment.completed:'.$locked->getKey(),
                 subjectLabel: $order->order_number,
+            );
+            $this->notifications->event(
+                $tenant->getKey(), $locked->store_id, [PermissionKey::FulfillmentsView],
+                'fulfillment-completed:'.$locked->getKey(), NotificationType::FulfillmentCompleted, NotificationSeverity::Info,
+                'Fulfillment completed', 'An order fulfillment was completed.',
+                '/admin/fulfillments/'.$locked->getKey(), ['fulfillment_id' => $locked->getKey()],
+                AuditSubjectType::Fulfillment->value, (string) $locked->getKey(),
             );
 
             return $locked->fresh(['items', 'history']);

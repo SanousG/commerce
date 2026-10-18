@@ -61,7 +61,12 @@ class HandleInertiaRequests extends Middleware
                 'timezone',
             ]),
             'unreadNotificationsCount' => fn (): int => $request->user() && $this->tenantContext->hasTenant()
-                ? $this->unreadNotificationCount->forUser($this->tenantContext->id(), $this->storeContext->id(), $request->user()->getKey())
+                ? $this->unreadNotificationCount->forUser(
+                    $this->tenantContext->id(),
+                    $this->storeContext->id(),
+                    $request->user(),
+                    $this->permissionChecker,
+                )
                 : 0,
             'status' => fn () => $request->session()->get('status'),
         ];

@@ -16,9 +16,20 @@ class ProductMedia extends Model
 
     public const UPDATED_AT = null;
 
-    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
-    public function product(): BelongsTo { return $this->belongsTo(Product::class); }
-    public function mediaAsset(): BelongsTo { return $this->belongsTo(MediaAsset::class); }
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function mediaAsset(): BelongsTo
+    {
+        return $this->belongsTo(MediaAsset::class);
+    }
 
     protected function casts(): array
     {

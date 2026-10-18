@@ -9,6 +9,7 @@ use App\Modules\Fulfillment\Application\MarkShipmentReady;
 use App\Modules\Fulfillment\Application\MarkShipmentShipped;
 use App\Modules\Fulfillment\Domain\Enums\ShipmentStatus;
 use App\Modules\Inventory\Domain\Models\InventoryMovement;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Orders\Domain\Enums\OrderPaymentStatus;
 use App\Modules\Payments\Domain\Enums\CodDepositType;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +31,11 @@ class ShipmentLifecycleTest extends FulfillmentFeatureTestCase
             $tenant, $fulfillment, 'Test Carrier', 'Express', 'TRACK-1', 'https://example.test/TRACK-1', $actor,
         );
         $shipment = app(MarkShipmentReady::class)->handle($tenant, $shipment, $actor);
+        $this->assertDatabaseHas('admin_notifications', [
+            'tenant_id' => $tenant->getKey(),
+            'deduplication_key' => 'event:shipment-ready:'.$shipment->getKey(),
+            'type' => NotificationType::ShipmentReady->value,
+        ]);
         $shipment = app(MarkShipmentShipped::class)->handle($tenant, $shipment, $actor);
         $shipment = app(MarkShipmentDelivered::class)->handle($tenant, $shipment, $actor);
 

@@ -7,7 +7,6 @@ use App\Modules\Access\Application\PermissionChecker;
 use App\Modules\Access\Domain\Enums\PermissionKey;
 use App\Modules\Analytics\Domain\Data\AdminDashboardData;
 use App\Modules\Analytics\Domain\Data\DashboardDateRange;
-use App\Modules\Analytics\Domain\Enums\DashboardRange;
 use App\Modules\Stores\Domain\Models\Store;
 
 final readonly class BuildAdminDashboard
@@ -17,6 +16,7 @@ final readonly class BuildAdminDashboard
         private SalesDashboardMetrics $sales,
         private PaymentDashboardMetrics $payments,
         private OperationsDashboardMetrics $operations,
+        private RecentOrdersDashboardMetrics $recentOrders,
         private InventoryDashboardMetrics $inventory,
         private ProcurementDashboardMetrics $procurement,
         private ReturnsDashboardMetrics $returns,
@@ -24,19 +24,30 @@ final readonly class BuildAdminDashboard
         private ProfitabilityDashboardMetrics $profitability,
     ) {}
 
-    public function build(User $user, Store $store, DashboardRange $rangeKey): AdminDashboardData
+    public function build(User $user, Store $store, DashboardDateRange $range): AdminDashboardData
     {
         $tenantId = $store->tenant_id;
         $storeId = (string) $store->getKey();
         $currency = $store->currency;
-        $range = DashboardDateRange::make($rangeKey, $store->timezone);
+        $previous = $range->previous();
         $allowed = array_fill_keys($this->permissions->permissions($user), true);
         $can = fn (PermissionKey $permission): bool => isset($allowed[$permission->value]);
         $sections = [];
         $attention = [];
+        $metrics = [];
 
         if ($can(PermissionKey::OrdersView)) {
             $sections['sales'] = $this->sales->build($tenantId, $storeId, $currency, $range);
+            $previousSales = $this->sales->summary($tenantId, $storeId, $currency, $previous);
+            $metrics['gross_sales'] = MetricComparison::money($sections['sales']['gross_sales'], $previousSales['gross_sales']);
+            $metrics['orders'] = MetricComparison::count($sections['sales']['orders'], $previousSales['orders']);
+            $metrics['average_order_value'] = MetricComparison::money(
+                $sections['sales']['average_order_value'], $previousSales['average_order_value'],
+            );
+            $sections['recent_orders'] = $this->recentOrders->build(
+                $tenantId, $storeId, $currency, $range,
+                $can(PermissionKey::PaymentsView), $can(PermissionKey::FulfillmentsView),
+            );
         }
 
         if ($can(PermissionKey::InventoryCostView)) {
@@ -44,9 +55,18 @@ final readonly class BuildAdminDashboard
         }
 
         if ($can(PermissionKey::PaymentsView)) {
-            $sections['payments'] = $this->payments->build(
-                $tenantId, $storeId, $currency, $range, $can(PermissionKey::RefundsView),
+            $includeRefunds = $can(PermissionKey::RefundsView);
+            $sections['payments'] = $this->payments->build($tenantId, $storeId, $currency, $range, $includeRefunds);
+            $previousPayments = $this->payments->summary($tenantId, $storeId, $currency, $previous, $includeRefunds);
+            $metrics['captured_amount'] = MetricComparison::money(
+                $sections['payments']['captured_amount'], $previousPayments['captured_amount'],
             );
+            $metrics['net_paid'] = MetricComparison::money($sections['payments']['net_paid'], $previousPayments['net_paid']);
+            if ($includeRefunds) {
+                $metrics['refunded_amount'] = MetricComparison::money(
+                    $sections['payments']['refunded_amount'], $previousPayments['refunded_amount'],
+                );
+            }
             $attention[] = $this->attention('unpaid-orders', 'Unpaid orders', $sections['payments']['unpaid_orders'], '/admin/orders');
         }
 
@@ -84,7 +104,13 @@ final readonly class BuildAdminDashboard
             $attention[] = $this->attention('fiscal', 'Fiscal documents', $sections['fiscal']['attention'], '/admin/fiscal-documents');
         }
 
-        return new AdminDashboardData($range, $currency, $sections, $attention);
+        $comparison = [
+            'previous_range' => $previous->toArray(),
+            'same_length' => true,
+            'metrics' => $metrics,
+        ];
+
+        return new AdminDashboardData($range, $currency, $sections, $attention, $comparison);
     }
 
     /** @return array<string, mixed> */

@@ -3,10 +3,14 @@
 namespace App\Modules\Payments\Application;
 
 use App\Models\User;
+use App\Modules\Access\Domain\Enums\PermissionKey;
 use App\Modules\Audit\Application\AuditRecorder;
 use App\Modules\Audit\Domain\Enums\AuditAction;
 use App\Modules\Audit\Domain\Enums\AuditActorType;
 use App\Modules\Audit\Domain\Enums\AuditSubjectType;
+use App\Modules\Notifications\Application\OperationalNotificationPublisher;
+use App\Modules\Notifications\Domain\Enums\NotificationSeverity;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Orders\Domain\Enums\OrderStatus;
 use App\Modules\Orders\Domain\Models\Order;
 use App\Modules\Payments\Domain\Enums\PaymentProvider;
@@ -27,6 +31,7 @@ class CaptureManualPayment
         private readonly OrderPaymentCalculator $calculator,
         private readonly OrderPaymentStatusUpdater $statusUpdater,
         private readonly AuditRecorder $audit,
+        private readonly OperationalNotificationPublisher $notifications,
     ) {}
 
     public function handle(
@@ -105,6 +110,13 @@ class CaptureManualPayment
                 $actor,
                 idempotencyKey: $key,
                 subjectLabel: $lockedOrder->order_number,
+            );
+            $this->notifications->event(
+                $tenant->getKey(), $store->getKey(), [PermissionKey::PaymentsView],
+                'payment-captured:'.$transaction->getKey(), NotificationType::PaymentCaptured, NotificationSeverity::Info,
+                'Payment captured', 'A payment capture was confirmed.',
+                '/admin/payments/'.$lockedPayment->getKey(), ['payment_id' => $lockedPayment->getKey()],
+                AuditSubjectType::Payment->value, (string) $lockedPayment->getKey(),
             );
 
             return $transaction;

@@ -3,6 +3,11 @@
 namespace App\Modules\Returns\Application;
 
 use App\Models\User;
+use App\Modules\Access\Domain\Enums\PermissionKey;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
+use App\Modules\Notifications\Application\OperationalNotificationPublisher;
+use App\Modules\Notifications\Domain\Enums\NotificationSeverity;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Orders\Domain\Models\Order;
 use App\Modules\Orders\Domain\Models\OrderItem;
 use App\Modules\Returns\Domain\Enums\ReturnStatus;
@@ -14,7 +19,10 @@ use Illuminate\Validation\ValidationException;
 
 class CreateReturn
 {
-    public function __construct(private readonly ReturnEligibility $eligibility) {}
+    public function __construct(
+        private readonly ReturnEligibility $eligibility,
+        private readonly OperationalNotificationPublisher $notifications,
+    ) {}
 
     /** @param list<array{order_item_id: string, quantity: int, reason?: string|null}> $items */
     public function handle(
@@ -73,6 +81,13 @@ class CreateReturn
                 'tenant_id' => $tenant->getKey(), 'from_status' => null,
                 'to_status' => ReturnStatus::Requested, 'actor_user_id' => $actor?->getKey(),
             ]);
+            $this->notifications->event(
+                $tenant->getKey(), $store->getKey(), [PermissionKey::ReturnsManage],
+                'return-requested:'.$return->getKey(), NotificationType::ReturnRequested, NotificationSeverity::Warning,
+                'Return requires review', 'A return request is waiting for review.',
+                '/admin/returns/'.$return->getKey(), ['return_id' => $return->getKey()],
+                AuditSubjectType::ReturnRequest->value, (string) $return->getKey(),
+            );
 
             return $return->load(['items', 'history']);
         });

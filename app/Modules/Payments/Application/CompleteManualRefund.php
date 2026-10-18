@@ -3,10 +3,14 @@
 namespace App\Modules\Payments\Application;
 
 use App\Models\User;
+use App\Modules\Access\Domain\Enums\PermissionKey;
 use App\Modules\Audit\Application\AuditRecorder;
 use App\Modules\Audit\Domain\Enums\AuditAction;
 use App\Modules\Audit\Domain\Enums\AuditActorType;
 use App\Modules\Audit\Domain\Enums\AuditSubjectType;
+use App\Modules\Notifications\Application\OperationalNotificationPublisher;
+use App\Modules\Notifications\Domain\Enums\NotificationSeverity;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Orders\Domain\Models\Order;
 use App\Modules\Payments\Domain\Enums\PaymentTransactionStatus;
 use App\Modules\Payments\Domain\Enums\PaymentTransactionType;
@@ -26,6 +30,7 @@ class CompleteManualRefund
     public function __construct(
         private readonly OrderPaymentStatusUpdater $statusUpdater,
         private readonly AuditRecorder $audit,
+        private readonly OperationalNotificationPublisher $notifications,
     ) {}
 
     public function handle(
@@ -112,7 +117,16 @@ class CompleteManualRefund
                 idempotencyKey: $key,
                 subjectLabel: $order->order_number,
             );
-            $this->resolvePendingAfterCommit($lockedRefund);
+            $this->notifications->resolveCondition(
+                $tenant->getKey(), $store->getKey(), 'refund:'.$lockedRefund->getKey(),
+            );
+            $this->notifications->event(
+                $tenant->getKey(), $store->getKey(), [PermissionKey::RefundsView],
+                'refund-completed:'.$transaction->getKey(), NotificationType::RefundCompleted, NotificationSeverity::Info,
+                'Refund completed', 'A refund was completed.',
+                '/admin/refunds/'.$lockedRefund->getKey(), ['refund_id' => $lockedRefund->getKey()],
+                AuditSubjectType::Refund->value, (string) $lockedRefund->getKey(),
+            );
 
             return $lockedRefund->fresh();
         });

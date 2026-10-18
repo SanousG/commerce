@@ -17,10 +17,25 @@ class ReturnNotificationLifecycleTest extends ReturnsFeatureTestCase
         $owner = User::factory()->create();
         $tenant = $this->createTenantFor($owner);
         $store = $this->createStore($tenant);
-        [$order, , , , $level] = $this->fulfilledOrder($tenant, $store, 1, actor: $owner);
+        [$order, , , , $level, $fulfillment] = $this->fulfilledOrder($tenant, $store, 1, actor: $owner);
+        $this->assertDatabaseHas('admin_notifications', [
+            'tenant_id' => $tenant->getKey(),
+            'deduplication_key' => 'event:fulfillment-completed:'.$fulfillment->getKey(),
+            'type' => NotificationType::FulfillmentCompleted->value,
+        ]);
         $return = $this->requestReturn($tenant, $store, $order, 1, $owner);
+        $this->assertDatabaseHas('admin_notifications', [
+            'tenant_id' => $tenant->getKey(),
+            'deduplication_key' => 'event:return-requested:'.$return->getKey(),
+            'type' => NotificationType::ReturnRequested->value,
+        ]);
 
         $received = $this->receiveReturn($tenant, $store, $return, 1, $owner);
+        $this->assertDatabaseHas('admin_notifications', [
+            'tenant_id' => $tenant->getKey(),
+            'deduplication_key' => 'event:return-approved:'.$return->getKey(),
+            'type' => NotificationType::ReturnApproved->value,
+        ]);
         app(ReconcileOperationalNotifications::class)->reconcile($tenant->getKey());
         $notification = AdminNotification::query()
             ->where('deduplication_key', 'condition:return:'.$return->getKey())->sole();

@@ -5,6 +5,10 @@ namespace Tests\Feature\Analytics;
 use App\Models\User;
 use App\Modules\Access\Domain\Enums\SystemRole;
 use App\Modules\Analytics\Application\InventoryDashboardMetrics;
+use App\Modules\Analytics\Application\SalesDashboardMetrics;
+use App\Modules\Analytics\Domain\Data\DashboardDateRange;
+use App\Modules\Analytics\Domain\Enums\DashboardRange;
+use App\Modules\Catalog\Domain\Enums\ProductStatus;
 use App\Modules\Inventory\Domain\Enums\InventoryLocationStatus;
 use App\Modules\Inventory\Domain\Models\InventoryLevel;
 use App\Modules\Inventory\Domain\Models\InventoryLocation;
@@ -138,6 +142,33 @@ class AdminDashboardTest extends OrdersFeatureTestCase
         $this->useDashboardContext($user, $tenant->getKey(), $store->getKey());
 
         $this->get(route('admin.dashboard', ['range' => 'drop table orders']))->assertSessionHasErrors('range');
+    }
+
+    public function test_top_products_cap_at_ten_and_keep_archived_snapshots(): void
+    {
+        CarbonImmutable::setTestNow('2026-09-27 18:00:00 UTC');
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $store = $this->createStore($tenant);
+
+        $products = [];
+        for ($index = 0; $index < 11; $index++) {
+            [$order, , $listing] = $this->readyOrder($tenant, $store, $user, quantity: 1);
+            $this->setOrder($order, '10.0000', OrderStatus::Confirmed, '2026-09-27 12:00:00 UTC');
+            $products[] = $listing->product()->firstOrFail();
+        }
+
+        $archived = collect($products)->sortBy('name')->first();
+        $archived->update(['status' => ProductStatus::Archived]);
+
+        $metrics = app(SalesDashboardMetrics::class)->build(
+            $tenant->getKey(), $store->getKey(), $store->currency,
+            DashboardDateRange::make(DashboardRange::Today, $store->timezone),
+        );
+
+        $this->assertCount(10, $metrics['top_products']);
+        $this->assertSame($archived->name, $metrics['top_products'][0]['product']);
+        $this->assertSame($archived->getKey(), $metrics['top_products'][0]['product_id']);
     }
 
     private function useDashboardContext(User $user, string $tenantId, string $storeId): void

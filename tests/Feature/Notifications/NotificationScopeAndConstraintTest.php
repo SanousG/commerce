@@ -5,7 +5,10 @@ namespace Tests\Feature\Notifications;
 use App\Models\User;
 use App\Modules\Access\Domain\Enums\PermissionKey;
 use App\Modules\Access\Domain\Enums\SystemRole;
+use App\Modules\Access\Domain\Models\Permission;
+use App\Modules\Access\Domain\Models\Role;
 use App\Modules\Notifications\Application\NotificationRecipientResolver;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Notifications\Domain\Models\AdminNotification;
 use App\Modules\Tenancy\Domain\Enums\TenantMemberStatus;
 use Illuminate\Database\QueryException;
@@ -13,6 +16,32 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 class NotificationScopeAndConstraintTest extends NotificationsFeatureTestCase
 {
+    public function test_revoked_resource_permission_hides_old_notification_content_and_actions(): void
+    {
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $store = $this->createStore($tenant);
+        $notification = $this->notification($tenant, $user, $store, [
+            'type' => NotificationType::FiscalRejected,
+            'title' => 'Fiscal document rejected',
+            'message' => 'A fiscal document requires attention.',
+            'action_url' => '/admin/fiscal-documents/'.fake()->uuid(),
+        ]);
+        $tenant->members()->where('user_id', $user->getKey())->update([
+            'role_id' => Role::query()->system(SystemRole::Member)->sole()->getKey(),
+        ]);
+        $memberRole = Role::query()->system(SystemRole::Member)->sole();
+        $memberRole->permissions()->detach(
+            Permission::query()
+                ->where('key', PermissionKey::FiscalDocumentsView->value)->valueOrFail('id'),
+        );
+        $this->useTenant($user, $tenant, $store);
+
+        $this->get(route('admin.notifications.index'))->assertInertia(fn (Assert $page) => $page->has('notifications.data', 0)->where('unreadNotificationsCount', 0)
+        );
+        $this->post(route('admin.notifications.read', $notification))->assertNotFound();
+    }
+
     public function test_shared_unread_count_excludes_read_resolved_and_dismissed_and_respects_active_store(): void
     {
         $user = User::factory()->create();

@@ -46,4 +46,37 @@ final class NotificationRecipientResolver
             ->map(fn ($id): int => (int) $id)
             ->values();
     }
+
+    /**
+     * Re-checks a single active member's permission at delivery time so a
+     * revoked grant cannot keep receiving protected notification content.
+     *
+     * @param  iterable<PermissionKey|string>  $permissions
+     */
+    public function userHasPermission(string $tenantId, int $userId, iterable $permissions): bool
+    {
+        $keys = collect($permissions)
+            ->map(fn (PermissionKey|string $permission): string => $permission instanceof PermissionKey ? $permission->value : $permission)
+            ->filter(fn (string $permission): bool => $permission !== '')
+            ->unique()
+            ->values();
+
+        if ($keys->isEmpty()) {
+            return false;
+        }
+
+        return DB::table('tenant_members')
+            ->join('tenants', 'tenants.id', '=', 'tenant_members.tenant_id')
+            ->join('roles', 'roles.id', '=', 'tenant_members.role_id')
+            ->join('role_permissions', 'role_permissions.role_id', '=', 'roles.id')
+            ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('tenant_members.tenant_id', $tenantId)
+            ->where('tenant_members.user_id', $userId)
+            ->where('tenant_members.status', TenantMemberStatus::Active->value)
+            ->where('tenants.status', TenantStatus::Active->value)
+            ->whereNull('roles.tenant_id')
+            ->where('roles.is_system', true)
+            ->whereIn('permissions.key', $keys)
+            ->exists();
+    }
 }

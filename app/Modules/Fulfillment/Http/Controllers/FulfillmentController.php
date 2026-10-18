@@ -16,6 +16,7 @@ use App\Modules\Fulfillment\Domain\Models\Shipment;
 use App\Modules\Fulfillment\Domain\Models\ShipmentStatusHistory;
 use App\Modules\Fulfillment\Http\Requests\CancelFulfillmentRequest;
 use App\Modules\Fulfillment\Http\Requests\CreateFulfillmentRequest;
+use App\Modules\Fulfillment\Http\Requests\FulfillmentIndexRequest;
 use App\Modules\Stores\Application\StoreContext;
 use App\Modules\Tenancy\Application\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -25,10 +26,18 @@ use Inertia\Response;
 
 class FulfillmentController extends Controller
 {
-    public function index(TenantContext $tenants, StoreContext $stores): Response
+    public function index(FulfillmentIndexRequest $request, TenantContext $tenants, StoreContext $stores): Response
     {
+        $filters = $request->validated();
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? '';
+        $orderId = $filters['order_id'] ?? '';
         $fulfillments = Fulfillment::query()
             ->where('tenant_id', $tenants->id())->where('store_id', $stores->id())
+            ->when($search !== '', fn ($query) => $query->whereHas('order', fn ($query) => $query
+                ->where('order_number', 'ilike', "%{$search}%")))
+            ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->when($orderId !== '', fn ($query) => $query->where('order_id', $orderId))
             ->with(['order:id,order_number', 'location:id,name,code', 'shipment:id,fulfillment_id,status'])
             ->withCount('items')->withSum('items as total_quantity', 'quantity')
             ->orderByDesc('created_at')->paginate(20)->withQueryString();
@@ -41,7 +50,11 @@ class FulfillmentController extends Controller
             'created_at' => $fulfillment->created_at?->toISOString(),
         ]);
 
-        return Inertia::render('admin/fulfillments/Index', ['fulfillments' => $fulfillments]);
+        return Inertia::render('admin/fulfillments/Index', [
+            'fulfillments' => $fulfillments,
+            'filters' => ['search' => $search, 'status' => $status, 'order_id' => $orderId],
+            'statuses' => array_column(FulfillmentStatus::cases(), 'value'),
+        ]);
     }
 
     public function show(

@@ -11,6 +11,7 @@ use App\Modules\Access\Domain\Models\Role;
 use App\Modules\Tenancy\Application\TenantContext;
 use App\Modules\Tenancy\Domain\Enums\TenantMemberStatus;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class PermissionCheckerTest extends AccessFeatureTestCase
@@ -67,6 +68,33 @@ class PermissionCheckerTest extends AccessFeatureTestCase
 
         $this->assertFalse(app(PermissionChecker::class)->can($membership, PermissionKey::StoresCreate));
         $this->assertFalse(Gate::forUser($user)->allows(PermissionKey::StoresCreate->value));
+    }
+
+    public function test_current_membership_is_loaded_only_once_per_request_scope(): void
+    {
+        $user = User::factory()->create();
+        $tenant = $this->createTenant();
+        $this->createMembership($user, $tenant, SystemRole::Owner);
+        $context = app(TenantContext::class);
+        $checker = app(PermissionChecker::class);
+        $context->set($tenant);
+
+        try {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+
+            $first = $checker->currentMembership($user);
+            $firstQueryCount = count(DB::getQueryLog());
+            $second = $checker->currentMembership($user);
+
+            $this->assertNotNull($first);
+            $this->assertSame($first, $second);
+            $this->assertGreaterThan(0, $firstQueryCount);
+            $this->assertCount($firstQueryCount, DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+            $context->clear();
+        }
     }
 
     public function test_suspended_and_removed_memberships_have_no_permissions(): void

@@ -12,6 +12,7 @@ use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Payments\Domain\Models\Refund;
 use App\Modules\Payments\Http\Requests\CompleteManualRefundRequest;
 use App\Modules\Payments\Http\Requests\CreateRefundRequest;
+use App\Modules\Payments\Http\Requests\RefundIndexRequest;
 use App\Modules\Returns\Domain\Models\ReturnRequest;
 use App\Modules\Stores\Application\StoreContext;
 use App\Modules\Tenancy\Application\TenantContext;
@@ -22,14 +23,26 @@ use Inertia\Response;
 
 class RefundController extends Controller
 {
-    public function index(TenantContext $tenants, StoreContext $stores): Response
+    public function index(RefundIndexRequest $request, TenantContext $tenants, StoreContext $stores): Response
     {
+        $filters = $request->validated();
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? '';
+        $orderId = $filters['order_id'] ?? '';
         $refunds = Refund::query()->where('tenant_id', $tenants->id())->where('store_id', $stores->id())
+            ->when($search !== '', fn ($query) => $query->whereHas('order', fn ($query) => $query
+                ->where('order_number', 'ilike', "%{$search}%")))
+            ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->when($orderId !== '', fn ($query) => $query->where('order_id', $orderId))
             ->with(['order:id,order_number', 'payment:id,method,provider'])
             ->orderByDesc('created_at')->paginate(20)->withQueryString();
         $refunds->through(fn (Refund $refund): array => $this->serialize($refund));
 
-        return Inertia::render('admin/refunds/Index', ['refunds' => $refunds]);
+        return Inertia::render('admin/refunds/Index', [
+            'refunds' => $refunds,
+            'filters' => ['search' => $search, 'status' => $status, 'order_id' => $orderId],
+            'statuses' => array_column(RefundStatus::cases(), 'value'),
+        ]);
     }
 
     public function show(TenantContext $tenants, StoreContext $stores, string $refund): Response

@@ -11,8 +11,13 @@ use App\Modules\Customers\Domain\Enums\CustomerStatus;
 use App\Modules\Customers\Domain\Models\Customer;
 use App\Modules\Customers\Domain\Models\CustomerAddress;
 use App\Modules\Customers\Http\Requests\CreateCustomerRequest;
+use App\Modules\Customers\Http\Requests\CustomerIndexRequest;
 use App\Modules\Customers\Http\Requests\UpdateCustomerRequest;
+use App\Modules\Orders\Domain\Models\Order;
+use App\Modules\Stores\Application\StoreContext;
+use App\Modules\Stores\Domain\Models\Store;
 use App\Modules\Tenancy\Application\TenantContext;
+use App\Modules\Tenancy\Domain\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,10 +25,15 @@ use Inertia\Response;
 
 class CustomerController extends Controller
 {
-    public function index(Request $request, TenantContext $context, CustomerAccess $access): Response
-    {
+    public function index(
+        CustomerIndexRequest $request,
+        TenantContext $context,
+        CustomerAccess $access,
+    ): Response {
         abort_unless($access->canView($request->user()), 403);
-        $search = trim((string) $request->query('search'));
+        $filters = $request->validated();
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? '';
         $customers = $context->get()->customers()
             ->when($search !== '', fn ($query) => $query->where(function ($query) use ($search) {
                 $query->where('first_name', 'ilike', "%{$search}%")
@@ -31,6 +41,7 @@ class CustomerController extends Controller
                     ->orWhere('email', 'ilike', "%{$search}%")
                     ->orWhere('phone', 'ilike', "%{$search}%");
             }))
+            ->when($status !== '', fn ($query) => $query->where('status', $status))
             ->withCount('addresses')
             ->orderByDesc('created_at')
             ->paginate(20)->withQueryString()
@@ -38,7 +49,8 @@ class CustomerController extends Controller
 
         return Inertia::render('admin/customers/Index', [
             'customers' => $customers,
-            'filters' => ['search' => $search],
+            'filters' => ['search' => $search, 'status' => $status],
+            'statuses' => array_column(CustomerStatus::cases(), 'value'),
         ]);
     }
 
@@ -53,7 +65,68 @@ class CustomerController extends Controller
     {
         $customer = $action->handle($context->get(), $request->validated());
 
-        return to_route('admin.customers.edit', $customer)->with('status', 'Customer created.');
+        return to_route('admin.customers.show', $customer)->with('status', 'Customer created.');
+    }
+
+    public function show(
+        Request $request,
+        TenantContext $context,
+        CustomerAccess $access,
+        string $customer,
+    ): Response {
+        abort_unless($access->canView($request->user()), 403);
+        $tenant = $context->get();
+        $scoped = $tenant->customers()->with('addresses')->withCount('addresses')->findOrFail($customer);
+        $canViewOrders = $request->user()->can('orders.view');
+
+        // The customers surface is tenant-wide, while orders are store-owned. The
+        // store resolved for the current session is read only to decide whether an
+        // order link is reachable; it never authorises or widens the query below.
+        $currentStore = $this->currentStore($request, $tenant);
+        $orderHistory = null;
+        $ordersInOtherStores = 0;
+
+        if ($canViewOrders) {
+            $orders = Order::query()
+                ->where('tenant_id', $tenant->getKey())
+                ->where('customer_id', $scoped->getKey())
+                ->orderByDesc('placed_at')->orderByDesc('id')
+                ->paginate(10, ['*'], 'orders_page')->withQueryString();
+            $ordersInOtherStores = $currentStore === null
+                ? (int) $orders->total()
+                : Order::query()
+                    ->where('tenant_id', $tenant->getKey())
+                    ->where('customer_id', $scoped->getKey())
+                    ->where('store_id', '!=', $currentStore->getKey())
+                    ->count();
+            $orderHistory = $orders->through(fn (Order $order): array => [
+                'id' => $order->getKey(),
+                'order_number' => $order->order_number,
+                'status' => $order->status->value,
+                'payment_status' => $order->payment_status->value,
+                'fulfillment_status' => $order->fulfillment_status->value,
+                'currency' => $order->currency,
+                'grand_total' => $order->grand_total,
+                'placed_at' => $order->placed_at->toISOString(),
+                'openable' => $currentStore !== null && $order->store_id === $currentStore->getKey(),
+            ]);
+        }
+
+        return Inertia::render('admin/customers/Show', [
+            'customer' => $this->customerData($scoped),
+            'addresses' => $scoped->addresses->map(fn (CustomerAddress $address): array => $this->addressData($address)),
+            'orderHistory' => $orderHistory,
+            'ordersInOtherStores' => $ordersInOtherStores,
+            'currentStore' => $currentStore === null ? null : [
+                'id' => $currentStore->getKey(),
+                'name' => $currentStore->name,
+            ],
+            'capabilities' => [
+                'update' => $access->canUpdate($request->user()),
+                'archive' => $access->canArchive($request->user()),
+                'view_orders' => $canViewOrders,
+            ],
+        ]);
     }
 
     public function edit(Request $request, TenantContext $context, CustomerAccess $access, string $customer): Response
@@ -88,6 +161,19 @@ class CustomerController extends Controller
         return to_route('admin.customers.index')->with('status', 'Customer archived.');
     }
 
+    /**
+     * Resolve the store held in the session by ResolveStore. It is used for display
+     * decisions only, and the store is always re-checked against the active tenant.
+     */
+    private function currentStore(Request $request, Tenant $tenant): ?Store
+    {
+        $storeId = $request->session()->get(StoreContext::SESSION_KEY);
+
+        return is_string($storeId)
+            ? Store::query()->where('tenant_id', $tenant->getKey())->find($storeId)
+            : null;
+    }
+
     private function customerData(Customer $customer): array
     {
         return [
@@ -101,6 +187,7 @@ class CustomerController extends Controller
             'notes' => $customer->notes,
             'addresses_count' => (int) ($customer->addresses_count ?? $customer->addresses()->count()),
             'created_at' => $customer->created_at?->toISOString(),
+            'updated_at' => $customer->updated_at?->toISOString(),
         ];
     }
 

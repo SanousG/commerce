@@ -3,12 +3,16 @@
 namespace App\Modules\Procurement\Application;
 
 use App\Models\User;
+use App\Modules\Access\Domain\Enums\PermissionKey;
 use App\Modules\Audit\Application\AuditRecorder;
 use App\Modules\Audit\Domain\Enums\AuditAction;
 use App\Modules\Audit\Domain\Enums\AuditActorType;
 use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Inventory\Application\ReceiveInventory;
 use App\Modules\Inventory\Domain\Models\InventoryLocation;
+use App\Modules\Notifications\Application\OperationalNotificationPublisher;
+use App\Modules\Notifications\Domain\Enums\NotificationSeverity;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Procurement\Domain\Enums\PurchaseOrderStatus;
 use App\Modules\Procurement\Domain\Enums\PurchaseReceiptStatus;
 use App\Modules\Procurement\Domain\Models\PurchaseOrder;
@@ -27,6 +31,7 @@ class PostPurchaseReceipt
         private readonly ReceiveInventory $inventory,
         private readonly PurchaseOrderReceivingStatusUpdater $statusUpdater,
         private readonly AuditRecorder $audit,
+        private readonly OperationalNotificationPublisher $notifications,
     ) {}
 
     public function handle(Tenant $tenant, PurchaseReceipt $receipt, ?User $actor = null): PurchaseReceipt
@@ -101,6 +106,13 @@ class PostPurchaseReceipt
                 actor: $effectiveActor,
                 idempotencyKey: 'purchase_receipt.posted:'.$receipt->getKey(),
                 subjectLabel: $receipt->reference ?? $receipt->getKey(),
+            );
+            $this->notifications->event(
+                $tenant->getKey(), null, [PermissionKey::ProcurementView],
+                'purchase-receipt-posted:'.$receipt->getKey(), NotificationType::PurchaseReceiptPosted, NotificationSeverity::Info,
+                'Purchase receipt posted', 'Inventory from a purchase order was received.',
+                '/admin/purchase-receipts/'.$receipt->getKey(), ['purchase_receipt_id' => $receipt->getKey()],
+                AuditSubjectType::PurchaseReceipt->value, (string) $receipt->getKey(),
             );
 
             return $receipt->refresh()->load('items');

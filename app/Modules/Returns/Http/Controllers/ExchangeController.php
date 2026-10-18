@@ -13,6 +13,7 @@ use App\Modules\Returns\Domain\Models\ExchangeItem;
 use App\Modules\Returns\Domain\Models\ReturnRequest;
 use App\Modules\Returns\Http\Requests\CancelExchangeRequest;
 use App\Modules\Returns\Http\Requests\CreateExchangeRequest;
+use App\Modules\Returns\Http\Requests\ExchangeIndexRequest;
 use App\Modules\Returns\Http\Requests\ManageExchangeRequest;
 use App\Modules\Stores\Application\StoreContext;
 use App\Modules\Tenancy\Application\TenantContext;
@@ -23,11 +24,21 @@ use Inertia\Response;
 
 class ExchangeController extends Controller
 {
-    public function index(Request $request, TenantContext $tenants, StoreContext $stores): Response
+    public function index(ExchangeIndexRequest $request, TenantContext $tenants, StoreContext $stores): Response
     {
         abort_unless($request->user()->can('exchanges.view'), 403);
+        $filters = $request->validated();
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? '';
+        $orderId = $filters['order_id'] ?? '';
         $exchanges = Exchange::query()
             ->where('tenant_id', $tenants->id())->where('store_id', $stores->id())
+            ->when($search !== '', fn ($query) => $query->whereHas('order', fn ($query) => $query
+                ->where('order_number', 'ilike', "%{$search}%")
+                ->orWhere('customer_name', 'ilike', "%{$search}%")
+                ->orWhere('email', 'ilike', "%{$search}%")))
+            ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->when($orderId !== '', fn ($query) => $query->where('order_id', $orderId))
             ->with('order:id,order_number,customer_name,email')
             ->withCount('items')->orderByDesc('created_at')->paginate(20)->withQueryString();
         $exchanges->through(fn (Exchange $exchange): array => [
@@ -39,7 +50,11 @@ class ExchangeController extends Controller
             'item_count' => $exchange->items_count, 'created_at' => $exchange->created_at?->toISOString(),
         ]);
 
-        return Inertia::render('admin/exchanges/Index', ['exchanges' => $exchanges]);
+        return Inertia::render('admin/exchanges/Index', [
+            'exchanges' => $exchanges,
+            'filters' => ['search' => $search, 'status' => $status, 'order_id' => $orderId],
+            'statuses' => array_column(ExchangeStatus::cases(), 'value'),
+        ]);
     }
 
     public function show(

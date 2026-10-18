@@ -27,6 +27,7 @@ use App\Modules\Returns\Http\Requests\CreateReturnRequest;
 use App\Modules\Returns\Http\Requests\ManageReturnRequest;
 use App\Modules\Returns\Http\Requests\ReceiveReturnRequest;
 use App\Modules\Returns\Http\Requests\RejectReturnRequest;
+use App\Modules\Returns\Http\Requests\ReturnIndexRequest;
 use App\Modules\Stores\Application\StoreContext;
 use App\Modules\Tenancy\Application\TenantContext;
 use Illuminate\Http\RedirectResponse;
@@ -36,11 +37,21 @@ use Inertia\Response;
 
 class ReturnController extends Controller
 {
-    public function index(Request $request, TenantContext $tenants, StoreContext $stores): Response
+    public function index(ReturnIndexRequest $request, TenantContext $tenants, StoreContext $stores): Response
     {
         abort_unless($request->user()->can('returns.view'), 403);
+        $filters = $request->validated();
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? '';
+        $orderId = $filters['order_id'] ?? '';
         $returns = ReturnRequest::query()
             ->where('tenant_id', $tenants->id())->where('store_id', $stores->id())
+            ->when($search !== '', fn ($query) => $query->whereHas('order', fn ($query) => $query
+                ->where('order_number', 'ilike', "%{$search}%")
+                ->orWhere('customer_name', 'ilike', "%{$search}%")
+                ->orWhere('email', 'ilike', "%{$search}%")))
+            ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->when($orderId !== '', fn ($query) => $query->where('order_id', $orderId))
             ->with('order:id,order_number,customer_name,email')
             ->withCount('items')->orderByDesc('requested_at')->paginate(20)->withQueryString();
         $returns->through(fn (ReturnRequest $return): array => [
@@ -51,7 +62,11 @@ class ReturnController extends Controller
             'requested_at' => $return->requested_at?->toISOString(), 'item_count' => $return->items_count,
         ]);
 
-        return Inertia::render('admin/returns/Index', ['returns' => $returns]);
+        return Inertia::render('admin/returns/Index', [
+            'returns' => $returns,
+            'filters' => ['search' => $search, 'status' => $status, 'order_id' => $orderId],
+            'statuses' => array_column(ReturnStatus::cases(), 'value'),
+        ]);
     }
 
     public function show(

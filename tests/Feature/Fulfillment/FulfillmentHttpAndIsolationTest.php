@@ -3,8 +3,14 @@
 namespace Tests\Feature\Fulfillment;
 
 use App\Models\User;
+use App\Modules\Access\Domain\Enums\PermissionKey;
 use App\Modules\Access\Domain\Enums\SystemRole;
+use App\Modules\Access\Domain\Models\Permission;
+use App\Modules\Access\Domain\Models\Role;
 use App\Modules\Fulfillment\Application\CreateShipment;
+use App\Modules\Fulfillment\Application\MarkShipmentReady;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
+use App\Modules\Notifications\Domain\Models\AdminNotification;
 use Inertia\Testing\AssertableInertia;
 
 class FulfillmentHttpAndIsolationTest extends FulfillmentFeatureTestCase
@@ -83,6 +89,38 @@ class FulfillmentHttpAndIsolationTest extends FulfillmentFeatureTestCase
         $this->post(route('admin.shipments.ship', $shipment))->assertForbidden();
         $this->post(route('admin.shipments.deliver', $shipment))->assertForbidden();
         $this->post(route('admin.shipments.cancel', $shipment), ['reason' => 'Denied.'])->assertForbidden();
+    }
+
+    public function test_shipment_read_permission_protects_mixed_fulfillment_reads_and_nested_order_props(): void
+    {
+        $member = User::factory()->create();
+        $tenant = $this->createTenantFor($member, SystemRole::Member);
+        [$order] = $this->readyOrder($tenant, $store = $this->createStore($tenant), $member);
+        $order->update(['delivery_type' => 'SHIPPING']);
+        $this->makeCod($tenant, $store, $order);
+        $fulfillment = $this->fulfillment($tenant, $order, 1);
+        $shipment = app(CreateShipment::class)->handle($tenant, $fulfillment, trackingNumber: 'PRIVATE-TRACKING');
+        app(MarkShipmentReady::class)->handle($tenant, $shipment, $member);
+        $notification = AdminNotification::query()
+            ->where('type', NotificationType::ShipmentReady->value)
+            ->sole();
+        $this->useContext($member, $tenant, $store);
+
+        $this->get(route('admin.fulfillments.index'))->assertOk();
+        $this->get(route('admin.fulfillments.show', $fulfillment))->assertOk();
+
+        Role::query()->system(SystemRole::Member)->sole()->permissions()->detach(
+            Permission::query()->where('key', PermissionKey::ShipmentsView->value)->valueOrFail('id'),
+        );
+
+        $this->get(route('admin.fulfillments.index'))->assertForbidden();
+        $this->get(route('admin.fulfillments.show', $fulfillment))->assertForbidden();
+        $this->get(route('admin.orders.show', $order))->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('relatedLinks.fulfillments', null)
+            ->missing('fulfillmentData.fulfillments.0.shipment_status'));
+        $this->get(route('admin.notifications.index', ['type' => NotificationType::ShipmentReady->value]))
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('notifications.data', 0));
+        $this->post(route('admin.notifications.read', $notification))->assertNotFound();
     }
 
     public function test_fulfillment_and_shipment_routes_hide_other_store_and_tenant_records(): void

@@ -13,8 +13,8 @@ use App\Modules\Audit\Http\Controllers\ActivityController;
 use App\Modules\Cart\Http\Controllers\CartController;
 use App\Modules\Catalog\Http\Controllers\CategoryController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
-use App\Modules\Catalog\Http\Controllers\ProductOptionController;
 use App\Modules\Catalog\Http\Controllers\ProductMediaController;
+use App\Modules\Catalog\Http\Controllers\ProductOptionController;
 use App\Modules\Catalog\Http\Controllers\ProductVariantController;
 use App\Modules\Catalog\Http\Controllers\ProductVariantMediaController;
 use App\Modules\Checkout\Http\Controllers\CheckoutController;
@@ -31,6 +31,7 @@ use App\Modules\Inventory\Http\Controllers\InventoryLocationController;
 use App\Modules\Listings\Http\Controllers\ListingController;
 use App\Modules\Media\Http\Controllers\MediaController;
 use App\Modules\Notifications\Http\Controllers\AdminNotificationController;
+use App\Modules\Notifications\Http\Controllers\NotificationPreferenceController;
 use App\Modules\Orders\Http\Controllers\OrderController;
 use App\Modules\Payments\Http\Controllers\OrderPaymentTermsController;
 use App\Modules\Payments\Http\Controllers\PaymentController;
@@ -179,6 +180,7 @@ Route::middleware(['auth', 'auth.session', 'verified'])
             Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
             Route::get('/customers/create', [CustomerController::class, 'create'])->name('customers.create');
             Route::post('/customers', [CustomerController::class, 'store'])->name('customers.store');
+            Route::get('/customers/{customer}', [CustomerController::class, 'show'])->whereUuid('customer')->name('customers.show');
             Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])->whereUuid('customer')->name('customers.edit');
             Route::match(['put', 'patch'], '/customers/{customer}', [CustomerController::class, 'update'])->whereUuid('customer')->name('customers.update');
             Route::post('/customers/{customer}/archive', [CustomerController::class, 'archive'])->whereUuid('customer')->name('customers.archive');
@@ -302,6 +304,8 @@ Route::middleware(['auth', 'auth.session', 'verified'])
             Route::post('/notifications/read-all', [AdminNotificationController::class, 'readAll'])->name('notifications.read-all');
             Route::post('/notifications/{notification}/read', [AdminNotificationController::class, 'read'])->whereUuid('notification')->name('notifications.read');
             Route::post('/notifications/{notification}/dismiss', [AdminNotificationController::class, 'dismiss'])->whereUuid('notification')->name('notifications.dismiss');
+            Route::get('/settings/notifications', [NotificationPreferenceController::class, 'show'])->name('notifications.preferences.show');
+            Route::match(['put', 'patch'], '/settings/notifications', [NotificationPreferenceController::class, 'update'])->name('notifications.preferences.update');
             Route::get('/fiscal-documents', [FiscalDocumentController::class, 'index'])->middleware('can:fiscal_documents.view')->name('fiscal-documents.index');
             Route::get('/fiscal-documents/{fiscalDocument}', [FiscalDocumentController::class, 'show'])->middleware('can:fiscal_documents.view')->whereUuid('fiscalDocument')->name('fiscal-documents.show');
             Route::post('/fiscal-documents/{fiscalDocument}/submit-sunat', [FiscalDocumentController::class, 'submitSunat'])->middleware(['can:fiscal_documents.manage', 'throttle:sunat-submit'])->whereUuid('fiscalDocument')->name('fiscal-documents.submit-sunat');
@@ -311,8 +315,8 @@ Route::middleware(['auth', 'auth.session', 'verified'])
             Route::post('/fiscal-series', [FiscalSeriesController::class, 'store'])->middleware('can:fiscal_settings.manage')->name('fiscal-series.store');
             Route::patch('/fiscal-series/{fiscalSeries}', [FiscalSeriesController::class, 'update'])->middleware('can:fiscal_settings.manage')->whereUuid('fiscalSeries')->name('fiscal-series.update');
 
-            Route::get('/fulfillments', [FulfillmentController::class, 'index'])->middleware('can:fulfillments.view')->name('fulfillments.index');
-            Route::get('/fulfillments/{fulfillment}', [FulfillmentController::class, 'show'])->middleware('can:fulfillments.view')->whereUuid('fulfillment')->name('fulfillments.show');
+            Route::get('/fulfillments', [FulfillmentController::class, 'index'])->middleware(['can:fulfillments.view', 'can:shipments.view'])->name('fulfillments.index');
+            Route::get('/fulfillments/{fulfillment}', [FulfillmentController::class, 'show'])->middleware(['can:fulfillments.view', 'can:shipments.view'])->whereUuid('fulfillment')->name('fulfillments.show');
             Route::post('/orders/{order}/fulfillments', [FulfillmentController::class, 'store'])->middleware('can:fulfillments.manage')->whereUuid('order')->name('orders.fulfillments.store');
             Route::post('/fulfillments/{fulfillment}/start', [FulfillmentController::class, 'start'])->middleware('can:fulfillments.manage')->whereUuid('fulfillment')->name('fulfillments.start');
             Route::post('/fulfillments/{fulfillment}/complete', [FulfillmentController::class, 'complete'])->middleware('can:fulfillments.complete')->whereUuid('fulfillment')->name('fulfillments.complete');

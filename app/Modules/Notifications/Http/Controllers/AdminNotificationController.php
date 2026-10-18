@@ -3,6 +3,8 @@
 namespace App\Modules\Notifications\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Access\Application\PermissionChecker;
+use App\Modules\Notifications\Application\NotificationRouting;
 use App\Modules\Notifications\Domain\Enums\NotificationSeverity;
 use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Notifications\Domain\Models\AdminNotification;
@@ -17,13 +19,13 @@ use Inertia\Response;
 
 class AdminNotificationController extends Controller
 {
-    public function index(NotificationIndexRequest $request, TenantContext $tenants, StoreContext $stores): Response
+    public function index(NotificationIndexRequest $request, TenantContext $tenants, StoreContext $stores, PermissionChecker $permissions): Response
     {
         $validated = $request->validated();
         $unread = filter_var($validated['unread'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $active = filter_var($validated['active'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $resolved = filter_var($validated['resolved'] ?? false, FILTER_VALIDATE_BOOLEAN);
-        $notifications = $this->visibleQuery($request, $tenants, $stores)
+        $notifications = $this->visibleQuery($request, $tenants, $stores, $permissions)
             ->when($unread, fn ($query) => $query->whereNull('read_at'))
             ->when($active, fn ($query) => $query->whereNull('dismissed_at')->whereNull('resolved_at'))
             ->when($resolved, fn ($query) => $query->whereNotNull('resolved_at'))
@@ -60,9 +62,9 @@ class AdminNotificationController extends Controller
         ]);
     }
 
-    public function read(Request $request, TenantContext $tenants, StoreContext $stores, string $notification): RedirectResponse
+    public function read(Request $request, TenantContext $tenants, StoreContext $stores, PermissionChecker $permissions, string $notification): RedirectResponse
     {
-        $notification = $this->visibleQuery($request, $tenants, $stores)->findOrFail($notification);
+        $notification = $this->visibleQuery($request, $tenants, $stores, $permissions)->findOrFail($notification);
         if ($notification->read_at === null) {
             $notification->forceFill(['read_at' => now()])->save();
         }
@@ -70,31 +72,40 @@ class AdminNotificationController extends Controller
         return back();
     }
 
-    public function readAll(Request $request, TenantContext $tenants, StoreContext $stores): RedirectResponse
+    public function readAll(Request $request, TenantContext $tenants, StoreContext $stores, PermissionChecker $permissions): RedirectResponse
     {
-        $this->visibleQuery($request, $tenants, $stores)
+        $this->visibleQuery($request, $tenants, $stores, $permissions)
             ->whereNull('read_at')
             ->update(['read_at' => now(), 'updated_at' => now()]);
 
         return back();
     }
 
-    public function dismiss(Request $request, TenantContext $tenants, StoreContext $stores, string $notification): RedirectResponse
+    public function dismiss(Request $request, TenantContext $tenants, StoreContext $stores, PermissionChecker $permissions, string $notification): RedirectResponse
     {
-        $this->visibleQuery($request, $tenants, $stores)->findOrFail($notification)
+        $this->visibleQuery($request, $tenants, $stores, $permissions)->findOrFail($notification)
             ->forceFill(['dismissed_at' => now()])->save();
 
         return back();
     }
 
-    private function visibleQuery(Request $request, TenantContext $tenants, StoreContext $stores): Builder
+    private function visibleQuery(Request $request, TenantContext $tenants, StoreContext $stores, PermissionChecker $permissions): Builder
     {
         abort_unless($tenants->hasTenant(), 404);
         $storeId = $stores->id();
 
+        $allowedTypes = collect(NotificationType::cases())
+            ->filter(function (NotificationType $type) use ($request, $permissions): bool {
+                $permission = NotificationRouting::permission($type);
+
+                return $permission === null || $permissions->userCan($request->user(), $permission);
+            })
+            ->map(fn (NotificationType $type): string => $type->value);
+
         return AdminNotification::query()
             ->where('tenant_id', $tenants->id())
             ->where('recipient_user_id', $request->user()->getKey())
+            ->whereIn('type', $allowedTypes)
             ->where(fn ($query) => $query->whereNull('store_id')->when($storeId !== null, fn ($query) => $query->orWhere('store_id', $storeId)));
     }
 }

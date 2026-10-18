@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Modules\Media\Domain\Models\MediaAsset;
 use App\Modules\Tenancy\Domain\Models\Tenant;
 use App\Modules\Tenancy\Domain\Models\TenantMember;
-use App\Modules\Media\Domain\Models\MediaAsset;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;

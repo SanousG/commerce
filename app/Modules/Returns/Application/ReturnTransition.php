@@ -8,24 +8,20 @@ use App\Modules\Audit\Application\AuditRecorder;
 use App\Modules\Audit\Domain\Enums\AuditAction;
 use App\Modules\Audit\Domain\Enums\AuditActorType;
 use App\Modules\Audit\Domain\Enums\AuditSubjectType;
-use App\Modules\Notifications\Application\BestEffortNotificationManager;
-use App\Modules\Notifications\Application\NotificationRecipientResolver;
+use App\Modules\Notifications\Application\OperationalNotificationPublisher;
 use App\Modules\Notifications\Domain\Enums\NotificationSeverity;
 use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Returns\Domain\Enums\ReturnStatus;
 use App\Modules\Returns\Domain\Models\ReturnRequest;
 use App\Modules\Stores\Domain\Models\Store;
 use App\Modules\Tenancy\Domain\Models\Tenant;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Throwable;
 
 class ReturnTransition
 {
     public function __construct(
         private readonly AuditRecorder $audit,
-        private readonly BestEffortNotificationManager $notifications,
-        private readonly NotificationRecipientResolver $recipients,
+        private readonly OperationalNotificationPublisher $notifications,
     ) {}
 
     /** @param list<ReturnStatus> $from */
@@ -73,24 +69,30 @@ class ReturnTransition
 
     private function afterCommitNotifications(Tenant $tenant, Store $store, ReturnRequest $return, ReturnStatus $status): void
     {
+        if ($status === ReturnStatus::Approved) {
+            $this->notifications->event(
+                $tenant->getKey(), $store->getKey(), [PermissionKey::ReturnsManage],
+                'return-approved:'.$return->getKey(),
+                NotificationType::ReturnApproved, NotificationSeverity::Info,
+                'Return approved', 'A return was approved and is ready to be received.',
+                '/admin/returns/'.$return->getKey(), ['return_id' => $return->getKey()],
+                AuditSubjectType::ReturnRequest->value, (string) $return->getKey(),
+            );
+
+            return;
+        }
+
         if ($status === ReturnStatus::Received) {
-            DB::afterCommit(function () use ($tenant, $store, $return): void {
-                try {
-                    $recipients = $this->recipients->userIds($tenant->getKey(), [
-                        PermissionKey::ReturnsInspect,
-                        PermissionKey::ReturnsManage,
-                    ]);
-                    $this->notifications->deliverCondition(
-                        $tenant->getKey(), $store->getKey(), $recipients, 'return:'.$return->getKey(),
-                        NotificationType::ReturnAwaitingInspection, NotificationSeverity::Warning,
-                        'Return awaiting inspection', 'A received return is ready for inspection.',
-                        '/admin/returns/'.$return->getKey(), ['return_id' => $return->getKey()],
-                        AuditSubjectType::ReturnRequest->value, $return->getKey(),
-                    );
-                } catch (Throwable $exception) {
-                    report($exception);
-                }
-            });
+            // Received returns are conditions rather than immutable events: the
+            // row remains active until inspection is completed or cancelled.
+            $this->notifications->condition(
+                $tenant->getKey(), $store->getKey(), [PermissionKey::ReturnsInspect, PermissionKey::ReturnsManage],
+                'return:'.$return->getKey(),
+                NotificationType::ReturnAwaitingInspection, NotificationSeverity::Warning,
+                'Return awaiting inspection', 'A received return is ready for inspection.',
+                '/admin/returns/'.$return->getKey(), ['return_id' => $return->getKey()],
+                AuditSubjectType::ReturnRequest->value, (string) $return->getKey(),
+            );
 
             return;
         }
@@ -99,21 +101,8 @@ class ReturnTransition
             return;
         }
 
-        DB::afterCommit(function () use ($tenant, $store, $return): void {
-            try {
-                DB::table('admin_notifications')
-                    ->where('tenant_id', $tenant->getKey())
-                    ->where('store_id', $store->getKey())
-                    ->whereIn('deduplication_key', [
-                        'condition:return:'.$return->getKey(),
-                        'event:return:'.$return->getKey(),
-                    ])
-                    ->whereNull('resolved_at')
-                    ->whereNull('dismissed_at')
-                    ->update(['resolved_at' => now(), 'updated_at' => now()]);
-            } catch (Throwable $exception) {
-                report($exception);
-            }
-        });
+        $this->notifications->resolveCondition(
+            $tenant->getKey(), $store->getKey(), 'return:'.$return->getKey(),
+        );
     }
 }

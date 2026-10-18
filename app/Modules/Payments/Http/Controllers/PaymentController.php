@@ -7,6 +7,7 @@ use App\Modules\Payments\Application\CancelPayment;
 use App\Modules\Payments\Application\CaptureManualPayment;
 use App\Modules\Payments\Application\CreateManualPayment;
 use App\Modules\Payments\Domain\Enums\PaymentMethod;
+use App\Modules\Payments\Domain\Enums\PaymentStatus;
 use App\Modules\Payments\Domain\Enums\PaymentTransactionStatus;
 use App\Modules\Payments\Domain\Enums\PaymentTransactionType;
 use App\Modules\Payments\Domain\Models\Payment;
@@ -14,19 +15,27 @@ use App\Modules\Payments\Domain\Models\PaymentTransaction;
 use App\Modules\Payments\Http\Requests\CancelPaymentRequest;
 use App\Modules\Payments\Http\Requests\CaptureManualPaymentRequest;
 use App\Modules\Payments\Http\Requests\CreateManualPaymentRequest;
+use App\Modules\Payments\Http\Requests\PaymentIndexRequest;
 use App\Modules\Stores\Application\StoreContext;
 use App\Modules\Tenancy\Application\TenantContext;
 use Brick\Math\BigDecimal;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PaymentController extends Controller
 {
-    public function index(Request $request, TenantContext $tenants, StoreContext $stores): Response
+    public function index(PaymentIndexRequest $request, TenantContext $tenants, StoreContext $stores): Response
     {
+        $filters = $request->validated();
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? '';
+        $orderId = $filters['order_id'] ?? '';
         $payments = $stores->get()->payments()->where('tenant_id', $tenants->id())
+            ->when($search !== '', fn ($query) => $query->whereHas('order', fn ($query) => $query
+                ->where('order_number', 'ilike', "%{$search}%")))
+            ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->when($orderId !== '', fn ($query) => $query->where('order_id', $orderId))
             ->with('order:id,order_number')
             ->withSum(['transactions as captured_amount' => fn ($query) => $query
                 ->where('type', PaymentTransactionType::Capture->value)
@@ -34,7 +43,11 @@ class PaymentController extends Controller
             ->orderByDesc('created_at')->paginate(20)->withQueryString();
         $payments->through(fn (Payment $payment): array => $this->serialize($payment));
 
-        return Inertia::render('admin/payments/Index', ['payments' => $payments]);
+        return Inertia::render('admin/payments/Index', [
+            'payments' => $payments,
+            'filters' => ['search' => $search, 'status' => $status, 'order_id' => $orderId],
+            'statuses' => array_column(PaymentStatus::cases(), 'value'),
+        ]);
     }
 
     public function show(TenantContext $tenants, StoreContext $stores, string $payment): Response

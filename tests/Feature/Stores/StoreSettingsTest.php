@@ -60,14 +60,18 @@ class StoreSettingsTest extends StoreFeatureTestCase
 
     public function test_admin_can_update_but_member_cannot_update_settings(): void
     {
-        $admin = User::factory()->create(); $adminTenant = $this->createTenantFor($admin, SystemRole::Admin);
-        $adminStore = $this->createStore($adminTenant); $this->settings($adminTenant, $adminStore);
+        $admin = User::factory()->create();
+        $adminTenant = $this->createTenantFor($admin, SystemRole::Admin);
+        $adminStore = $this->createStore($adminTenant);
+        $this->settings($adminTenant, $adminStore);
         $this->actingAs($admin)->withSession([TenantContext::SESSION_KEY => $adminTenant->getKey()])
             ->patch(route('admin.stores.settings.update', $adminStore), $this->payload($adminStore, ['display_name' => 'Admin Store']))
             ->assertRedirect();
 
-        $member = User::factory()->create(); $memberTenant = $this->createTenantFor($member, SystemRole::Member);
-        $memberStore = $this->createStore($memberTenant); $this->settings($memberTenant, $memberStore);
+        $member = User::factory()->create();
+        $memberTenant = $this->createTenantFor($member, SystemRole::Member);
+        $memberStore = $this->createStore($memberTenant);
+        $this->settings($memberTenant, $memberStore);
         $this->actingAs($member)->withSession([TenantContext::SESSION_KEY => $memberTenant->getKey()])
             ->patch(route('admin.stores.settings.update', $memberStore), $this->payload($memberStore, ['display_name' => 'Forbidden']))
             ->assertForbidden();
@@ -77,9 +81,12 @@ class StoreSettingsTest extends StoreFeatureTestCase
 
     public function test_cross_tenant_store_cannot_be_read_or_updated(): void
     {
-        $user = User::factory()->create(); $tenantA = $this->createTenantFor($user);
-        $other = User::factory()->create(); $tenantB = $this->createTenantFor($other);
-        $storeB = $this->createStore($tenantB); $this->settings($tenantB, $storeB);
+        $user = User::factory()->create();
+        $tenantA = $this->createTenantFor($user);
+        $other = User::factory()->create();
+        $tenantB = $this->createTenantFor($other);
+        $storeB = $this->createStore($tenantB);
+        $this->settings($tenantB, $storeB);
         $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenantA->getKey()]);
 
         $this->get(route('admin.stores.settings.show', $storeB))->assertNotFound();
@@ -90,9 +97,12 @@ class StoreSettingsTest extends StoreFeatureTestCase
 
     public function test_two_stores_in_same_tenant_keep_distinct_settings(): void
     {
-        $user = User::factory()->create(); $tenant = $this->createTenantFor($user);
-        $storeA = $this->createStore($tenant); $storeB = $this->createStore($tenant);
-        $this->settings($tenant, $storeA); $this->settings($tenant, $storeB);
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $storeA = $this->createStore($tenant);
+        $storeB = $this->createStore($tenant);
+        $this->settings($tenant, $storeA);
+        $this->settings($tenant, $storeB);
         $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
 
         $this->patch(route('admin.stores.settings.update', $storeA), $this->payload($storeA, ['display_name' => 'Store A']))->assertRedirect();
@@ -104,9 +114,13 @@ class StoreSettingsTest extends StoreFeatureTestCase
 
     public function test_branding_accepts_same_tenant_media_rejects_other_tenant_and_blocks_deletion_until_unlinked(): void
     {
-        $user = User::factory()->create(); $tenant = $this->createTenantFor($user); $store = $this->createStore($tenant);
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $store = $this->createStore($tenant);
         $asset = $this->asset($tenant, $user);
-        $other = User::factory()->create(); $otherTenant = $this->createTenantFor($other); $otherAsset = $this->asset($otherTenant, $other);
+        $other = User::factory()->create();
+        $otherTenant = $this->createTenantFor($other);
+        $otherAsset = $this->asset($otherTenant, $other);
         $this->settings($tenant, $store);
         $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
 
@@ -125,7 +139,9 @@ class StoreSettingsTest extends StoreFeatureTestCase
 
     public function test_unsafe_social_urls_and_invalid_contact_and_branding_values_are_rejected(): void
     {
-        $user = User::factory()->create(); $tenant = $this->createTenantFor($user); $store = $this->createStore($tenant);
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $store = $this->createStore($tenant);
         $this->settings($tenant, $store);
         $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
 
@@ -137,7 +153,9 @@ class StoreSettingsTest extends StoreFeatureTestCase
 
     public function test_stale_updates_return_conflict_instead_of_overwriting_changes(): void
     {
-        $user = User::factory()->create(); $tenant = $this->createTenantFor($user); $store = $this->createStore($tenant);
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $store = $this->createStore($tenant);
         $this->settings($tenant, $store);
         $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
         $stale = $this->payload($store);
@@ -175,7 +193,8 @@ class StoreSettingsTest extends StoreFeatureTestCase
 
     private function asset(Tenant $tenant, User $user): MediaAsset
     {
-        $id = (string) Str::uuid7(); $key = "media/tenants/{$tenant->getKey()}/{$id}/master.jpg";
+        $id = (string) Str::uuid7();
+        $key = "media/tenants/{$tenant->getKey()}/{$id}/master.jpg";
         Storage::disk('store-settings-media-test')->put($key, 'image');
 
         return MediaAsset::create([

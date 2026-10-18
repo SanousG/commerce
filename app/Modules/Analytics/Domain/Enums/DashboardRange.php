@@ -9,4 +9,5 @@ enum DashboardRange: string
     case Last7Days = '7d';
     case Last30Days = '30d';
     case ThisMonth = 'this_month';
+    case Custom = 'custom';
 }

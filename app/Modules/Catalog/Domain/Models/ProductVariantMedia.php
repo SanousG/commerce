@@ -16,9 +16,23 @@ class ProductVariantMedia extends Model
 
     public const UPDATED_AT = null;
 
-    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
-    public function productVariant(): BelongsTo { return $this->belongsTo(ProductVariant::class); }
-    public function mediaAsset(): BelongsTo { return $this->belongsTo(MediaAsset::class); }
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
 
-    protected function casts(): array { return ['position' => 'integer']; }
+    public function productVariant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class);
+    }
+
+    public function mediaAsset(): BelongsTo
+    {
+        return $this->belongsTo(MediaAsset::class);
+    }
+
+    protected function casts(): array
+    {
+        return ['position' => 'integer'];
+    }
 }

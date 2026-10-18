@@ -12,8 +12,10 @@ class ProductMediaTest extends MediaFeatureTestCase
 {
     public function test_product_gallery_primary_order_alt_override_and_reuse(): void
     {
-        $user = User::factory()->create(); $tenant = $this->createTenantFor($user);
-        $productA = $this->createProduct($tenant); $productB = $this->createProduct($tenant);
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $productA = $this->createProduct($tenant);
+        $productB = $this->createProduct($tenant);
         $assetA = $this->createAsset($tenant, $user, ['alt_text' => 'Black shoe']);
         $assetB = $this->createAsset($tenant, $user);
         $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
@@ -34,10 +36,15 @@ class ProductMediaTest extends MediaFeatureTestCase
 
     public function test_variant_images_work_and_cross_tenant_references_are_hidden(): void
     {
-        $user = User::factory()->create(); $tenant = $this->createTenantFor($user); $product = $this->createProduct($tenant);
-        $variant = $product->variants()->sole(); $asset = $this->createAsset($tenant, $user);
-        $otherUser = User::factory()->create(); $other = $this->createTenantFor($otherUser);
-        $otherAsset = $this->createAsset($other, $otherUser); $otherProduct = $this->createProduct($other);
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $product = $this->createProduct($tenant);
+        $variant = $product->variants()->sole();
+        $asset = $this->createAsset($tenant, $user);
+        $otherUser = User::factory()->create();
+        $other = $this->createTenantFor($otherUser);
+        $otherAsset = $this->createAsset($other, $otherUser);
+        $otherProduct = $this->createProduct($other);
         $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
 
         $this->post(route('admin.product-variants.media.store', $variant), ['media_asset_id' => $asset->getKey()])->assertRedirect();
@@ -48,17 +55,24 @@ class ProductMediaTest extends MediaFeatureTestCase
 
     public function test_delete_is_blocked_while_referenced_then_removes_all_storage_when_unused(): void
     {
-        $user = User::factory()->create(); $tenant = $this->createTenantFor($user); $product = $this->createProduct($tenant);
-        $asset = $this->createAsset($tenant, $user); $keys = [$asset->storage_key, ...$asset->derivatives->pluck('storage_key')->all()];
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $product = $this->createProduct($tenant);
+        $asset = $this->createAsset($tenant, $user);
+        $keys = [$asset->storage_key, ...$asset->derivatives->pluck('storage_key')->all()];
         $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
         $this->post(route('admin.products.media.store', $product), ['media_asset_id' => $asset->getKey()])->assertRedirect();
         $this->deleteJson(route('admin.media.destroy', $asset))->assertConflict();
         $this->assertDatabaseHas('media_assets', ['id' => $asset->getKey()]);
-        foreach ($keys as $key) Storage::disk('media-test')->assertExists($key);
+        foreach ($keys as $key) {
+            Storage::disk('media-test')->assertExists($key);
+        }
 
         $this->delete(route('admin.products.media.destroy', [$product, $asset]))->assertRedirect();
         $this->delete(route('admin.media.destroy', $asset))->assertRedirect();
         $this->assertDatabaseMissing('media_assets', ['id' => $asset->getKey()]);
-        foreach ($keys as $key) Storage::disk('media-test')->assertMissing($key);
+        foreach ($keys as $key) {
+            Storage::disk('media-test')->assertMissing($key);
+        }
     }
 }
