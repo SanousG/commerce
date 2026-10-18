@@ -21,6 +21,7 @@ const unreadNotificationsCount = computed(() => page.props.unreadNotificationsCo
 const sections: Array<{ label: string; items: NavItem[] }> = [
     { label: 'Catalog', items: [
         { label: 'Products', href: '/admin/products', permission: 'products.view' },
+        { label: 'Media', href: '/admin/media', permission: 'media.view' },
         { label: 'Categories', href: '/admin/categories', permission: 'categories.view' },
         { label: 'Listings', href: '/admin/listings', permission: 'listings.view' },
         { label: 'Promotions', href: '/admin/promotions', permission: 'promotions.view' },
@@ -86,6 +87,7 @@ const sections: Array<{ label: string; items: NavItem[] }> = [
                     <p class="mb-2 text-[10px] font-semibold tracking-[0.2em] text-white/35 uppercase">Settings</p>
                     <Link href="/admin/settings" :class="active('/admin/settings') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">General</Link>
                     <Link v-if="permissions.includes('stores.view')" href="/admin/stores" :class="active('/admin/stores') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Stores</Link>
+                    <Link v-if="permissions.includes('stores.view') && currentStore" :href="`/admin/stores/${currentStore.id}/settings`" :class="page.url.includes('/stores/') && page.url.endsWith('/settings') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Current store settings</Link>
                     <Link v-if="permissions.includes('members.view')" href="/admin/settings/team" :class="active('/admin/settings/team') ? 'text-[#d8f36a]' : 'text-white/70 hover:text-white'" class="block py-1.5 text-sm font-semibold">Team &amp; Access</Link>
                 </div>
             </nav>

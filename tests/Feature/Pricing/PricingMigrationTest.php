@@ -53,6 +53,9 @@ class PricingMigrationTest extends PricingFeatureTestCase
         $dailySummaryMigration = require database_path('migrations/2026_09_08_000045_create_fiscal_daily_summaries.php');
         $costingMigration = require database_path('migrations/2026_09_08_000048_create_inventory_costing_tables.php');
         $fulfillmentCostMigration = require database_path('migrations/2026_09_08_000049_add_cost_snapshot_to_fulfillment_items.php');
+        $mediaMigration = require database_path('migrations/2026_09_08_000053_create_media_tables.php');
+        $productMediaMigration = require database_path('migrations/2026_09_08_000054_create_product_media_tables.php');
+        $storeSettingsMigration = require database_path('migrations/2026_09_08_000056_create_store_settings_table.php');
         $this->assertInstanceOf(Migration::class, $migration);
         $this->assertInstanceOf(Migration::class, $inventoryMigration);
         $this->assertInstanceOf(Migration::class, $promotionMigration);
@@ -63,8 +66,12 @@ class PricingMigrationTest extends PricingFeatureTestCase
         $this->assertInstanceOf(Migration::class, $paymentMigration);
         $this->assertInstanceOf(Migration::class, $fulfillmentMigration);
         $this->assertInstanceOf(Migration::class, $partialCommitMigration);
+        $this->assertInstanceOf(Migration::class, $storeSettingsMigration);
         $auditMigration = require database_path('migrations/2026_09_08_000051_create_audit_entries.php');
         $notificationMigration = require database_path('migrations/2026_09_08_000052_create_admin_notifications.php');
+        $storeSettingsMigration->down();
+        $productMediaMigration->down();
+        $mediaMigration->down();
         $notificationMigration->down();
         $auditMigration->down();
         $fulfillmentCostMigration->down();
@@ -122,6 +129,9 @@ class PricingMigrationTest extends PricingFeatureTestCase
         $dailySummaryMigration->up();
         $costingMigration->up();
         $fulfillmentCostMigration->up();
+        $mediaMigration->up();
+        $productMediaMigration->up();
+        $storeSettingsMigration->up();
         $firstId = PriceList::query()->where('tenant_id', $tenant->getKey())->sole()->getKey();
         $this->assertTrue(Schema::hasTable('price_lists'));
         $this->assertTrue(Schema::hasTable('variant_prices'));
@@ -130,6 +140,9 @@ class PricingMigrationTest extends PricingFeatureTestCase
             'status' => 'ACTIVE', 'is_default' => true,
         ]);
 
+        $storeSettingsMigration->down();
+        $productMediaMigration->down();
+        $mediaMigration->down();
         $fulfillmentCostMigration->down();
         $costingMigration->down();
         $dailySummaryMigration->down();
@@ -182,6 +195,9 @@ class PricingMigrationTest extends PricingFeatureTestCase
         $dailySummaryMigration->up();
         $costingMigration->up();
         $fulfillmentCostMigration->up();
+        $mediaMigration->up();
+        $productMediaMigration->up();
+        $storeSettingsMigration->up();
         $this->assertSame($firstId, PriceList::query()->where('tenant_id', $tenant->getKey())->sole()->getKey());
     }
 

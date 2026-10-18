@@ -54,6 +54,11 @@ class ProductVariant extends Model
         return $this->hasMany(StoreListingVariant::class);
     }
 
+    public function media(): HasMany
+    {
+        return $this->hasMany(ProductVariantMedia::class)->orderBy('position');
+    }
+
     protected function casts(): array
     {
         return [

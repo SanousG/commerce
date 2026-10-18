@@ -55,7 +55,8 @@ const canSelectStore = computed(() => page.props.currentTenantMembership?.permis
                     </div>
                     <div v-if="(canSelectStore && store.status === 'ACTIVE') || canUpdateStore" class="mt-8 grid gap-2 sm:grid-cols-2">
                         <Link v-if="canSelectStore && store.status === 'ACTIVE'" :href="`/admin/stores/${store.id}/select`" method="post" as="button" class="border border-[#17211b] px-4 py-3 text-center text-sm font-semibold transition hover:bg-[#17211b] hover:text-white">{{ store.selected ? 'Enter current store' : 'Enter store' }}</Link>
-                        <Link v-if="canUpdateStore && store.status !== 'ARCHIVED'" :href="`/admin/stores/${store.id}/edit`" class="border border-[#17211b]/25 px-4 py-3 text-center text-sm font-semibold hover:border-[#17211b]">Edit settings</Link>
+                        <Link v-if="canUpdateStore && store.status !== 'ARCHIVED'" :href="`/admin/stores/${store.id}/edit`" class="border border-[#17211b]/25 px-4 py-3 text-center text-sm font-semibold hover:border-[#17211b]">Edit lifecycle</Link>
+                        <Link :href="`/admin/stores/${store.id}/settings`" class="border border-[#17211b]/25 px-4 py-3 text-center text-sm font-semibold hover:border-[#17211b]">Store settings</Link>
                     </div>
                     <p v-else class="mt-8 border border-[#17211b]/15 px-4 py-3 text-center text-sm text-[#637067]">Unavailable</p>
                 </article>

@@ -72,5 +72,15 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('invitation-accept', fn (Request $request) => Limit::perMinute(10)
             ->by('invitation-accept|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
+        RateLimiter::for('media-upload', function (Request $request) {
+            $tenant = $request->session()->get('current_tenant_id', 'none');
+            $user = $request->user()?->getAuthIdentifier() ?? $request->ip();
+
+            return [
+                Limit::perMinute(20)->by("media-upload|{$tenant}|{$user}"),
+                Limit::perHour(200)->by("media-upload|{$tenant}"),
+            ];
+        });
     }
 }

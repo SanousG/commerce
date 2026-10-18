@@ -39,6 +39,7 @@ class AccessDataTest extends AccessFeatureTestCase
             'promotions.view',
             'inventory.view',
             'listings.view',
+            'media.view',
             'orders.view',
             'customers.view',
             'carts.view',

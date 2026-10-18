@@ -54,6 +54,11 @@ class Product extends Model
         return $this->hasMany(ProductOption::class)->orderBy('position');
     }
 
+    public function media(): HasMany
+    {
+        return $this->hasMany(ProductMedia::class)->orderByDesc('is_primary')->orderBy('position');
+    }
+
     protected function casts(): array
     {
         return ['status' => ProductStatus::class];

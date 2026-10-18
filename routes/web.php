@@ -14,7 +14,9 @@ use App\Modules\Cart\Http\Controllers\CartController;
 use App\Modules\Catalog\Http\Controllers\CategoryController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
 use App\Modules\Catalog\Http\Controllers\ProductOptionController;
+use App\Modules\Catalog\Http\Controllers\ProductMediaController;
 use App\Modules\Catalog\Http\Controllers\ProductVariantController;
+use App\Modules\Catalog\Http\Controllers\ProductVariantMediaController;
 use App\Modules\Checkout\Http\Controllers\CheckoutController;
 use App\Modules\Costing\Http\Controllers\InventoryCostController;
 use App\Modules\Customers\Http\Controllers\CustomerAddressController;
@@ -27,6 +29,7 @@ use App\Modules\Fulfillment\Http\Controllers\ShipmentController;
 use App\Modules\Inventory\Http\Controllers\InventoryController;
 use App\Modules\Inventory\Http\Controllers\InventoryLocationController;
 use App\Modules\Listings\Http\Controllers\ListingController;
+use App\Modules\Media\Http\Controllers\MediaController;
 use App\Modules\Notifications\Http\Controllers\AdminNotificationController;
 use App\Modules\Orders\Http\Controllers\OrderController;
 use App\Modules\Payments\Http\Controllers\OrderPaymentTermsController;
@@ -45,6 +48,7 @@ use App\Modules\Returns\Http\Controllers\ExchangeController;
 use App\Modules\Returns\Http\Controllers\ReturnController;
 use App\Modules\Returns\Http\Controllers\ReturnItemController;
 use App\Modules\Stores\Http\Controllers\StoreController;
+use App\Modules\Stores\Http\Controllers\StoreSettingsController;
 use App\Modules\Tax\Http\Controllers\TaxController;
 use App\Modules\Tenancy\Http\Controllers\AcceptTenantInvitationController;
 use App\Modules\Tenancy\Http\Controllers\AdminSettingsController;
@@ -120,6 +124,14 @@ Route::middleware(['auth', 'auth.session', 'verified'])
             ->name('tenants.select');
 
         Route::middleware('tenant')->group(function () {
+            Route::get('/media', [MediaController::class, 'index'])->middleware('can:media.view')->name('media.index');
+            Route::post('/media', [MediaController::class, 'store'])->middleware(['can:media.upload', 'throttle:media-upload'])->name('media.store');
+            Route::get('/media/{mediaAsset}', [MediaController::class, 'show'])->middleware('can:media.view')->whereUuid('mediaAsset')->name('media.show');
+            Route::patch('/media/{mediaAsset}', [MediaController::class, 'update'])->middleware('can:media.manage')->whereUuid('mediaAsset')->name('media.update');
+            Route::delete('/media/{mediaAsset}', [MediaController::class, 'destroy'])->middleware('can:media.delete')->whereUuid('mediaAsset')->name('media.destroy');
+            Route::get('/media/{mediaAsset}/thumbnail', [MediaController::class, 'thumbnail'])->middleware('can:media.view')->whereUuid('mediaAsset')->name('media.thumbnail');
+            Route::get('/media/{mediaAsset}/file', [MediaController::class, 'file'])->middleware('can:media.view')->whereUuid('mediaAsset')->name('media.file');
+
             Route::get('/access', AccessController::class)->name('access.index');
             Route::get('/stores', [StoreController::class, 'index'])->name('stores.index');
             Route::get('/stores/create', [StoreController::class, 'create'])->name('stores.create');
@@ -129,6 +141,10 @@ Route::middleware(['auth', 'auth.session', 'verified'])
             Route::post('/stores/{store}/select', [StoreController::class, 'select'])
                 ->whereUuid('store')
                 ->name('stores.select');
+            Route::get('/stores/{store}/settings', [StoreSettingsController::class, 'show'])
+                ->middleware('can:stores.view')->whereUuid('store')->name('stores.settings.show');
+            Route::patch('/stores/{store}/settings', [StoreSettingsController::class, 'update'])
+                ->middleware('can:stores.update')->whereUuid('store')->name('stores.settings.update');
 
             Route::get('/settings', [AdminSettingsController::class, 'index'])
                 ->middleware('can:settings.view')->name('settings.index');
@@ -180,6 +196,12 @@ Route::middleware(['auth', 'auth.session', 'verified'])
             Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->whereUuid('product')->name('products.edit');
             Route::put('/products/{product}', [ProductController::class, 'update'])->whereUuid('product')->name('products.update');
             Route::patch('/products/{product}/archive', [ProductController::class, 'archive'])->whereUuid('product')->name('products.archive');
+            Route::post('/products/{product}/media', [ProductMediaController::class, 'store'])->middleware(['can:products.update', 'can:media.view'])->whereUuid('product')->name('products.media.store');
+            Route::delete('/products/{product}/media/{mediaAsset}', [ProductMediaController::class, 'destroy'])->middleware(['can:products.update', 'can:media.view'])->whereUuid(['product', 'mediaAsset'])->name('products.media.destroy');
+            Route::patch('/products/{product}/media-order', [ProductMediaController::class, 'reorder'])->middleware(['can:products.update', 'can:media.view'])->whereUuid('product')->name('products.media.reorder');
+            Route::post('/product-variants/{variant}/media', [ProductVariantMediaController::class, 'store'])->middleware(['can:products.update', 'can:media.view'])->whereUuid('variant')->name('product-variants.media.store');
+            Route::delete('/product-variants/{variant}/media/{mediaAsset}', [ProductVariantMediaController::class, 'destroy'])->middleware(['can:products.update', 'can:media.view'])->whereUuid(['variant', 'mediaAsset'])->name('product-variants.media.destroy');
+            Route::patch('/product-variants/{variant}/media-order', [ProductVariantMediaController::class, 'reorder'])->middleware(['can:products.update', 'can:media.view'])->whereUuid('variant')->name('product-variants.media.reorder');
             Route::post('/products/{product}/options', [ProductOptionController::class, 'store'])->whereUuid('product')->name('products.options.store');
             Route::post('/products/{product}/variants', [ProductVariantController::class, 'store'])->whereUuid('product')->name('products.variants.store');
             Route::put('/products/{product}/variants/{variant}', [ProductVariantController::class, 'update'])

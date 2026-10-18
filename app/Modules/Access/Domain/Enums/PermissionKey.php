@@ -81,6 +81,10 @@ enum PermissionKey: string
     case FiscalSettingsManage = 'fiscal_settings.manage';
     case AnalyticsView = 'analytics.view';
     case AuditView = 'audit.view';
+    case MediaView = 'media.view';
+    case MediaUpload = 'media.upload';
+    case MediaManage = 'media.manage';
+    case MediaDelete = 'media.delete';
     case SettingsView = 'settings.view';
     case SettingsManage = 'settings.manage';
 }

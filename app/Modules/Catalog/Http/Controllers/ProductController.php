@@ -84,12 +84,14 @@ class ProductController extends Controller
         string $product,
     ): Response {
         abort_unless($access->canViewProducts($request->user()), 403);
+        $canViewMedia = $permissions->userCan($request->user(), PermissionKey::MediaView);
 
         $scopedProduct = $context->get()->products()
             ->with([
                 'categories:id',
                 'options.values',
-                'variants' => fn ($query) => $query->with(['optionValues.option'])->orderByDesc('is_default')->orderBy('name'),
+                'media.mediaAsset',
+                'variants' => fn ($query) => $query->with(['optionValues.option', 'media.mediaAsset'])->orderByDesc('is_default')->orderBy('name'),
             ])
             ->findOrFail($product);
         $canViewPricing = $permissions->userCan($request->user(), PermissionKey::PricingView);
@@ -110,6 +112,15 @@ class ProductController extends Controller
                 'status' => $scopedProduct->status->value,
                 'tax_category_id' => $scopedProduct->tax_category_id,
                 'category_ids' => $scopedProduct->categories->modelKeys(),
+                'media' => $canViewMedia ? $scopedProduct->media->map(fn ($item) => [
+                    'id' => $item->mediaAsset->getKey(),
+                    'title' => $item->mediaAsset->title,
+                    'alt_text' => $item->alt_text,
+                    'default_alt_text' => $item->mediaAsset->alt_text,
+                    'is_primary' => $item->is_primary,
+                    'position' => $item->position,
+                    'thumbnail_url' => route('admin.media.thumbnail', $item->mediaAsset),
+                ])->values() : [],
                 'options' => $scopedProduct->options->map(fn ($option) => [
                     'id' => $option->getKey(),
                     'name' => $option->name,
@@ -130,6 +141,13 @@ class ProductController extends Controller
                         fn ($value) => $value->option->name.': '.$value->value,
                     )->values(),
                     'default_price' => $defaultPrices?->get($variant->getKey())?->amount,
+                    'media' => $canViewMedia ? $variant->media->map(fn ($item) => [
+                        'id' => $item->mediaAsset->getKey(),
+                        'title' => $item->mediaAsset->title,
+                        'alt_text' => $item->mediaAsset->alt_text,
+                        'position' => $item->position,
+                        'thumbnail_url' => route('admin.media.thumbnail', $item->mediaAsset),
+                    ])->values() : [],
                 ]),
             ],
             'pricing' => $defaultPriceList === null ? null : [
@@ -147,6 +165,10 @@ class ProductController extends Controller
                 : [],
             'productStatuses' => array_column(ProductStatus::cases(), 'value'),
             'variantStatuses' => array_column(ProductVariantStatus::cases(), 'value'),
+            'mediaPermissions' => [
+                'view' => $canViewMedia,
+                'upload' => $permissions->userCan($request->user(), PermissionKey::MediaUpload),
+            ],
         ]);
     }
 

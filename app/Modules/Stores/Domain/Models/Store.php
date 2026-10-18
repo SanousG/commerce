@@ -70,6 +70,11 @@ class Store extends Model
         return $this->hasOne(StorePaymentSettings::class);
     }
 
+    public function settings(): HasOne
+    {
+        return $this->hasOne(StoreSettings::class);
+    }
+
     public function fulfillments(): HasMany
     {
         return $this->hasMany(Fulfillment::class);

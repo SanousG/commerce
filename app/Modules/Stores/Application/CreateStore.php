@@ -3,6 +3,7 @@
 namespace App\Modules\Stores\Application;
 
 use App\Modules\Stores\Domain\Enums\StoreStatus;
+use App\Modules\Stores\Domain\Models\StoreSettings;
 use App\Modules\Tenancy\Domain\Models\Tenant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -22,6 +23,12 @@ class CreateStore
                 ...$attributes,
                 'slug' => $this->uniqueSlug($lockedTenant, $attributes['name']),
                 'status' => StoreStatus::Active,
+            ]);
+            $store->settings()->create([
+                'tenant_id' => $lockedTenant->getKey(),
+                'country_code' => 'PE',
+                'social_links' => StoreSettings::DEFAULT_SOCIAL_LINKS,
+                'primary_color' => '#17211B',
             ]);
 
             return new StoreCreationResult($store, $isFirstStore);

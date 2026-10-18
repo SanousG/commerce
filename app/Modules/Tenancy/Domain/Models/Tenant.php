@@ -22,11 +22,13 @@ use App\Modules\Inventory\Domain\Models\InventoryReservation;
 use App\Modules\Inventory\Domain\Models\InventoryTransfer;
 use App\Modules\Listings\Domain\Models\StoreListing;
 use App\Modules\Listings\Domain\Models\StoreListingVariant;
+use App\Modules\Media\Domain\Models\MediaAsset;
 use App\Modules\Orders\Domain\Models\Order;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Pricing\Domain\Models\PriceList;
 use App\Modules\Promotions\Domain\Models\Promotion;
 use App\Modules\Stores\Domain\Models\Store;
+use App\Modules\Stores\Domain\Models\StoreSettings;
 use App\Modules\Tax\Domain\Models\TaxCategory;
 use App\Modules\Tax\Domain\Models\TaxRate;
 use App\Modules\Tenancy\Domain\Enums\TenantStatus;
@@ -63,6 +65,11 @@ class Tenant extends Model
         return $this->hasMany(Store::class);
     }
 
+    public function storeSettings(): HasMany
+    {
+        return $this->hasMany(StoreSettings::class);
+    }
+
     /** @return HasMany<Product, $this> */
     public function products(): HasMany
     {
@@ -79,6 +86,11 @@ class Tenant extends Model
     public function productVariants(): HasMany
     {
         return $this->hasMany(ProductVariant::class);
+    }
+
+    public function mediaAssets(): HasMany
+    {
+        return $this->hasMany(MediaAsset::class);
     }
 
     /** @return HasMany<PriceList, $this> */
