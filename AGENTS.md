@@ -1,158 +1,51 @@
-# Project Agent Rules
+# Repository Agent Guide
 
-## Project Context
+## Scope and architecture
 
-This project is a multi-tenant e-commerce SaaS built with Laravel 13, PHP 8.5,
-Vue 3, Inertia.js, TypeScript, Tailwind CSS, PostgreSQL managed by Supabase, and
-local Redis through Docker / Laravel Sail.
+- This is one Laravel 13 modular monolith: backend, admin Inertia/Vue UI, and future storefront deploy together. Do not introduce microservices, Nuxt, or React.
+- Business code lives in `app/Modules/<Domain>/{Application,Domain,Http}`. HTTP routes remain centralized in `routes/web.php`; module providers that need registration are listed in `bootstrap/providers.php`.
+- Read the affected `app/Modules/<Domain>/README.md` before changing a domain. These files document snapshot boundaries, ownership, state transitions, and deliberately unsupported behavior that filenames do not reveal. For SUNAT work, also read `app/Modules/Fiscal/Infrastructure/Sunat/README.md`.
+- Development is phase-based. Do not scaffold a future domain or advance/close another phase without an explicit request; a functional phase needs tests and review before closure.
+- Use the local `ecommerce-architecture` skill for module or boundary decisions.
 
-Development is strictly phase-based. Each phase must be implemented, tested,
-reviewed, and explicitly closed before work starts on the next phase. Never
-advance to another phase without an explicit user request.
+## Tenant, store, and identity boundaries
 
-## Architecture
+- A Tenant is the company; a Store is an operational channel. Membership and company settings are tenant-wide, while currency, timezone, locale, listings, payment settings, and fiscal series are store-owned. Changing Store must not change membership.
+- Users can belong to multiple Tenants through `tenant_members`; never add or rely on a fixed `users.tenant_id`.
+- Never accept request/frontend `tenant_id` as authority. Resolve an active authorized membership through `TenantContext`/`tenant` middleware, and resolve store-owned work through `StoreContext`/`store` middleware. Scope every tenant-owned query, including route-model lookups.
+- Add explicit cross-tenant isolation coverage for every tenant-aware feature. Load the local `tenancy-rules` skill for tenant-owned data, jobs, cache, files, imports/exports, or analytics.
+- Web authentication is Laravel session/cookie auth backed by `public.users`; do not add JWT/refresh-token web auth or Supabase Auth. Backend Gates/policies and scoped queries are authoritative; hidden UI is not authorization. Load `auth-security-rules` for account/authentication work.
 
-- Use a Laravel Modular Monolith with a single deployment initially.
-- Keep the backend, admin frontend, and storefront frontend in the same Laravel
-  application. Vue and Inertia live inside this project.
-- Do not introduce microservices unless a future explicit decision changes the
-  architecture.
-- Keep business domains separated through modules as they begin to grow.
-- Create modules only when their phase requires them; do not scaffold future
-  domains prematurely.
-- Prefer the smallest correct design. Avoid ceremonial architecture and
-  overengineering.
-- Consult the local `ecommerce-architecture` skill for architecture or module
-  decisions.
+## Data and external-service safety
 
-## Multi-Tenancy
+- Development and production PostgreSQL are remote Supabase databases. Laravel migrations own application schema in `public`; do not modify Supabase `auth`, `storage`, or `realtime` schemas.
+- Never run `migrate:fresh`, `db:wipe`, broad truncation, or destructive data commands against Supabase. Do not alter remote credentials or delete remote data without explicit authorization.
+- `composer setup` is not a harmless bootstrap: it executes `php artisan migrate --force` against the current environment. Inspect the effective database target before using it.
+- Redis and Mailpit are local Compose services. Do not add Redis-backed queues/cache or Horizon merely because the services exist.
+- Automated tests must not contact SUNAT. Production SUNAT transport is intentionally unavailable; never enable production or resend an `UNKNOWN`/`SUBMITTED` attempt without explicit, manual reconciliation.
+- Never print the full `.env`, credentials, certificates, XML/CDR payloads, or other secrets.
 
-- Multi-tenancy is a cross-cutting requirement for every phase that handles
-  business data.
-- Never trust a `tenant_id` supplied by the frontend or request payload.
-- Resolve the tenant through an authorized context and verify the user's
-  membership and authorization.
-- Correctly isolate every tenant-owned entity and scope every tenant-owned
-  query.
-- Add cross-tenant isolation tests for all tenant-sensitive functionality.
-- A user may belong to multiple tenants through memberships. Do not use a fixed
-  `tenant_id` directly on `users` as the primary tenancy design.
-- `Store` and `Tenant` are distinct entities and concepts.
-- Consult the local `tenancy-rules` skill whenever work is tenant-aware.
+## Commands
 
-## Backend
+- Install locked dependencies: `composer install` and `npm ci`.
+- Start the complete local stack: `docker compose up -d`. The services are `laravel.test`, `pgsql.testing`, `redis`, and `mailpit`.
+- Aggregate development command: `composer dev`; Laravel 13 starts the HTTP server, queue listener, Pail when available, and Vite. Ensure its configured database/services are intentional first.
+- Frontend checks: `npm run typecheck` and `npm run build`. There is no configured JS lint script.
+- PHP formatting: `vendor/bin/pint path/to/changed.php`. Avoid repository-wide or `--dirty` formatting when unrelated worktree changes exist.
 
-- Prefer idiomatic Laravel patterns and framework features.
-- Keep controllers thin.
-- Use Form Requests for validation when appropriate.
-- Move business logic out of controllers as it grows.
-- Use database transactions for multi-write operations that require atomicity.
-- Integrate external providers through adapters or connectors.
-- Never call external providers directly from controllers.
+## Tests
 
-## Frontend
+- Before database-backed or tenant-aware tests, load `testing-rules` and inspect `phpunit.xml` plus the effective connection.
+- Tests are designed to run inside Compose. `phpunit.xml` forces PostgreSQL at `pgsql.testing`, database/user `commerce_testing`; `tests/TestCase.php` fails closed for any other target. This hostname is Docker-internal, so host-side database tests will not work safely.
+- Start the stack, then verify isolation first:
+  `docker compose exec laravel.test php artisan test tests/Feature/TestingDatabaseConnectionTest.php`
+- Full suite: `docker compose exec laravel.test php artisan test`.
+- One file: `docker compose exec laravel.test php artisan test tests/Feature/<Domain>/<TestFile>.php`.
+- One test method: `docker compose exec laravel.test php artisan test --filter=test_method_name`.
+- `RefreshDatabase` is used widely and is allowed only after the guard confirms the isolated local `pgsql.testing/commerce_testing` database. If that service is unavailable or the guard fails, write tests but do not run database-backed tests.
 
-- Use Vue 3, Inertia.js, TypeScript, and Tailwind CSS.
-- Keep admin and storefront visually and structurally separated even though
-  they live in the same application.
-- Do not add Nuxt.
-- Do not add React.
+## Change discipline
 
-## Authentication
-
-- Use Laravel session and cookie authentication for the web application.
-- Do not use JWT or refresh tokens for the web frontend.
-- Do not use Supabase Auth.
-- Laravel's `public.users` table is the primary application identity source.
-- Consult the local `auth-security-rules` skill for authentication or sensitive
-  security work.
-
-## Database
-
-- Production and development PostgreSQL are managed in Supabase; do not assume
-  a local PostgreSQL server.
-- Do not modify Supabase internal `auth`, `storage`, or `realtime` schemas.
-- Keep application tables in `public` unless a future explicit decision says
-  otherwise.
-- Laravel migrations are the source of truth for application schema changes.
-- Never run `migrate:fresh`, `db:wipe`, mass truncation, or another destructive
-  database command against Supabase without explicit authorization.
-- Never delete remote data on your own initiative.
-
-## Redis
-
-- Use local Redis in development.
-- Introduce Redis-backed cache or queues only when a phase needs them.
-- Do not introduce Horizon until a phase explicitly requires it.
-
-## Security
-
-- The backend always validates authorization; frontend checks are never a
-  security boundary.
-- Never expose secrets or print the complete `.env` file.
-- Sensitive actions must be designed so they can be audited.
-- AI integrations must never receive arbitrary SQL access.
-
-## Testing
-
-- Every functional phase requires tests before it can be closed.
-- Multi-tenancy functionality requires cross-tenant isolation tests.
-- Add a regression test for a fixed bug when it provides meaningful coverage.
-- Before running any database-backed test, inspect `phpunit.xml` and the
-  effective testing database configuration.
-- Verify that database-backed tests do not use the Supabase database used by
-  development or any other shared remote database.
-- Never run `migrate:fresh`, `db:wipe`, `RefreshDatabase`, mass truncation, or
-  another destructive operation against remote Supabase.
-- Use `RefreshDatabase` only after the test guard has confirmed the isolated
-  local `pgsql.testing` connection and `commerce_testing` database.
-- If no safe isolated testing database exists, write the tests but do not run
-  them; report the testing configuration that is still required.
-- Do not change remote database credentials without explicit authorization.
-- Never use real production data in tests.
-- Consult the local `testing-rules` skill before testing database-backed or
-  tenant-aware functionality.
-
-## Git Safety
-
-- Do not commit.
-- Do not push.
-- Do not change branches.
-- Do not delete or revert existing work without explicit authorization.
-
-## External Skills
-
-External skills from `skills.sh` may be evaluated later, but must not be
-installed automatically. First validate the local rules in this repository.
-
-Initial candidates from `leeovery/claude-laravel`:
-
-- `laravel-architecture`
-- `laravel-multi-tenancy`
-- `laravel-testing`
-- `laravel-quality`
-
-Future candidates from `jpcaparas/superpowers-laravel`:
-
-- `laravel:transactions-and-consistency`
-- `laravel:policies-and-authorization`
-- `laravel:migrations-and-factories`
-- `laravel:queues-and-horizon`
-- `laravel:http-client-resilience`
-- `laravel:rate-limiting`
-
-## Required Final Response
-
-At the end of every task, report all of the following, even when the answer is
-`None` or `Not run`:
-
-A. Files created
-B. Files modified
-C. Dependencies added or removed
-D. Migrations
-E. Tests
-F. Test results
-G. Technical decisions
-H. Problems encountered
-I. Pending work
-J. What was deliberately not implemented
+- Do not commit, push, switch branches, or discard existing work unless explicitly requested. The worktree may already contain substantial in-progress changes.
+- Do not install external skills or dependencies speculatively.
+- End every task with: files created; files modified; dependencies added/removed; migrations; tests; test results; technical decisions; problems; pending work; and deliberately omitted work. Report `None` or `Not run` where applicable.
