@@ -16,6 +16,7 @@ const allowed = (item: NavItem) => !item.permission || permissions.value.include
 const active = (href: string) => page.url === href || (href !== '/admin/dashboard' && page.url.startsWith(`${href}/`));
 const currentTenant = computed(() => page.props.currentTenant);
 const currentStore = computed(() => page.props.currentStore);
+const unreadNotificationsCount = computed(() => page.props.unreadNotificationsCount ?? 0);
 
 const sections: Array<{ label: string; items: NavItem[] }> = [
     { label: 'Catalog', items: [
@@ -40,6 +41,7 @@ const sections: Array<{ label: string; items: NavItem[] }> = [
     ] },
     { label: 'Inventory', items: [
         { label: 'Stock', href: '/admin/inventory', permission: 'inventory.view' },
+        { label: 'Valuation', href: '/admin/inventory/valuation', permission: 'inventory.cost.view' },
         { label: 'Locations', href: '/admin/inventory/locations', permission: 'inventory.view' },
     ] },
     { label: 'Procurement', items: [
@@ -50,6 +52,9 @@ const sections: Array<{ label: string; items: NavItem[] }> = [
         { label: 'Documents', href: '/admin/fiscal-documents', permission: 'fiscal_documents.view' },
         { label: 'Taxes', href: '/admin/taxes', permission: 'taxes.view' },
     ] },
+    { label: 'Workspace', items: [
+        { label: 'Activity', href: '/admin/activity', permission: 'audit.view' },
+    ] },
 ];
 </script>
 
@@ -57,7 +62,13 @@ const sections: Array<{ label: string; items: NavItem[] }> = [
     <div class="min-h-screen bg-[#f1eee6] text-[#17211b] lg:grid lg:grid-cols-[17rem_1fr]">
         <aside class="bg-[#17211b] text-white lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
             <div class="border-b border-white/10 px-5 py-5">
-                <Link href="/admin/dashboard" class="text-xs font-semibold tracking-[0.24em] text-[#d8f36a] uppercase">Commerce / Admin</Link>
+                <div class="flex items-center justify-between gap-3">
+                    <Link href="/admin/dashboard" class="text-xs font-semibold tracking-[0.24em] text-[#d8f36a] uppercase">Commerce / Admin</Link>
+                    <Link href="/admin/notifications" class="relative text-white/70 transition hover:text-white" :aria-label="unreadNotificationsCount ? `Notificaciones, ${unreadNotificationsCount} sin leer` : 'Notificaciones'">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="size-5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 17H9m9-2V11a6 6 0 1 0-12 0v4l-2 2h16l-2-2Zm-8 5h4" /></svg>
+                        <span v-if="unreadNotificationsCount" class="absolute -right-2.5 -top-2.5 min-w-4 bg-[#d8f36a] px-1 text-center text-[9px] font-bold leading-4 text-[#17211b]">{{ unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount }}</span>
+                    </Link>
+                </div>
                 <p class="mt-2 truncate text-sm text-white/60">{{ currentTenant?.name ?? 'Choose your workspace' }}</p>
                 <p v-if="currentStore" class="truncate text-xs text-white/45">{{ currentStore.name }}</p>
             </div>

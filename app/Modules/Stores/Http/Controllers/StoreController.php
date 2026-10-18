@@ -84,7 +84,7 @@ class StoreController extends Controller
         UpdateStore $updateStore,
         string $store,
     ): RedirectResponse {
-        $updated = $updateStore->handle($tenantContext->get(), $store, $request->validated());
+        $updated = $updateStore->handle($tenantContext->get(), $store, $request->validated(), $request->user());
 
         if ($updated->status !== StoreStatus::Active
             && $request->session()->get(StoreContext::SESSION_KEY) === $updated->getKey()) {

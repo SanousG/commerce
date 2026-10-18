@@ -3,6 +3,7 @@
 namespace App\Modules\Orders\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Costing\Application\OrderProfitability;
 use App\Modules\Fiscal\Domain\Enums\FiscalDocumentType;
 use App\Modules\Fiscal\Domain\Models\FiscalDocument;
 use App\Modules\Fulfillment\Application\FulfillmentPaymentEligibility;
@@ -81,6 +82,7 @@ class OrderController extends Controller
         StoreContext $stores,
         OrderPaymentCalculator $paymentCalculator,
         FulfillmentPaymentEligibility $fulfillmentPaymentEligibility,
+        OrderProfitability $profitability,
         string $order,
     ): Response {
         $scoped = $this->order($tenants, $stores, $order);
@@ -107,6 +109,7 @@ class OrderController extends Controller
                 ? $this->fulfillmentData($scoped, $fulfillmentPaymentEligibility, $request)
                 : null,
             'fiscalData' => $canViewFiscalDocuments ? $this->fiscalData($scoped, $request) : null,
+            'profitability' => $request->user()->can('inventory.cost.view') ? $profitability->build($scoped) : null,
         ]);
     }
 

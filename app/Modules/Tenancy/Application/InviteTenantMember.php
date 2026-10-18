@@ -5,6 +5,10 @@ namespace App\Modules\Tenancy\Application;
 use App\Mail\TenantInvitationMail;
 use App\Models\User;
 use App\Modules\Access\Domain\Models\Role;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Tenancy\Domain\Enums\TenantInvitationStatus;
 use App\Modules\Tenancy\Domain\Enums\TenantStatus;
 use App\Modules\Tenancy\Domain\Models\Tenant;
@@ -15,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class InviteTenantMember
 {
+    public function __construct(private readonly AuditRecorder $audit) {}
+
     public function handle(Tenant $tenant, User $actor, string $email, string $roleId): TenantInvitation
     {
         $email = strtolower(trim($email));
@@ -46,6 +52,17 @@ class InviteTenantMember
                 'invited_by_user_id' => $actor->getKey(),
                 'expires_at' => now()->addHours(config('tenancy.invitation_expiration_hours')),
             ]);
+
+            $this->audit->record(
+                $lockedTenant,
+                AuditActorType::User,
+                AuditAction::TenantMemberInvited,
+                AuditSubjectType::TenantInvitation,
+                $invitation->getKey(),
+                ['role' => $role->key],
+                actor: $actor,
+                subjectLabel: $invitation->email,
+            );
 
             return [$invitation->load(['tenant', 'role']), $token];
         });

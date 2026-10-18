@@ -5,6 +5,7 @@ namespace App\Modules\Inventory\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Catalog\Domain\Enums\ProductVariantStatus;
 use App\Modules\Catalog\Domain\Models\ProductVariant;
+use App\Modules\Costing\Domain\Models\InventoryValuation;
 use App\Modules\Inventory\Application\AdjustInventory;
 use App\Modules\Inventory\Application\InventoryAccess;
 use App\Modules\Inventory\Application\TransferInventory;
@@ -14,6 +15,8 @@ use App\Modules\Inventory\Domain\Models\InventoryMovement;
 use App\Modules\Inventory\Http\Requests\AdjustInventoryRequest;
 use App\Modules\Inventory\Http\Requests\TransferInventoryRequest;
 use App\Modules\Tenancy\Application\TenantContext;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -65,8 +68,13 @@ class InventoryController extends Controller
     ): Response {
         abort_unless($access->canView($request->user()), 403);
         $tenant = $context->get();
+        $canViewCost = $request->user()->can('inventory.cost.view');
         $scopedVariant = ProductVariant::query()->where('tenant_id', $tenant->getKey())
             ->with('product:id,name')->findOrFail($variant);
+        $valuations = $canViewCost ? InventoryValuation::query()
+            ->where('tenant_id', $tenant->getKey())
+            ->where('product_variant_id', $scopedVariant->getKey())
+            ->get()->keyBy('inventory_location_id') : collect();
         $levels = InventoryLevel::query()
             ->where('tenant_id', $tenant->getKey())
             ->where('product_variant_id', $scopedVariant->getKey())
@@ -74,14 +82,27 @@ class InventoryController extends Controller
             ->get()
             ->sortBy(fn (InventoryLevel $level): string => $level->location->name)
             ->values()
-            ->map(fn (InventoryLevel $level): array => [
-                'location_id' => $level->inventory_location_id,
-                'location_name' => $level->location->name,
-                'location_code' => $level->location->code,
-                'on_hand' => $level->on_hand,
-                'reserved' => $level->reserved,
-                'available' => $level->available,
-            ]);
+            ->map(function (InventoryLevel $level) use ($canViewCost, $valuations): array {
+                $data = [
+                    'location_id' => $level->inventory_location_id,
+                    'location_name' => $level->location->name,
+                    'location_code' => $level->location->code,
+                    'on_hand' => $level->on_hand,
+                    'reserved' => $level->reserved,
+                    'available' => $level->available,
+                ];
+                if ($canViewCost) {
+                    $valuation = $valuations->get($level->inventory_location_id);
+                    $average = $valuation?->average_unit_cost;
+                    $data['cost_status'] = $average === null ? 'UNINITIALIZED' : 'ACTIVE';
+                    $data['average_unit_cost'] = $average;
+                    $data['inventory_value'] = $average === null ? null : (string) BigDecimal::of($average)
+                        ->multipliedBy($level->on_hand)->toScale(4, RoundingMode::HalfUp);
+                    $data['cost_currency'] = $valuation?->currency;
+                }
+
+                return $data;
+            });
         $movements = InventoryMovement::query()
             ->where('tenant_id', $tenant->getKey())
             ->where('product_variant_id', $scopedVariant->getKey())
@@ -113,6 +134,8 @@ class InventoryController extends Controller
             'movements' => $movements,
             'locations' => $locations,
             'can_adjust' => $access->canAdjust($request->user()),
+            'can_view_cost' => $canViewCost,
+            'can_manage_cost' => $request->user()->can('inventory.cost.manage'),
         ]);
     }
 

@@ -32,5 +32,6 @@ export interface PageProps extends Record<string, unknown> {
     currentTenant: Tenant | null;
     currentTenantMembership: TenantMembership | null;
     currentStore: Store | null;
+    unreadNotificationsCount: number;
     status?: string;
 }

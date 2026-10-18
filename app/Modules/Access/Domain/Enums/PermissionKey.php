@@ -30,6 +30,8 @@ enum PermissionKey: string
     case PromotionsArchive = 'promotions.archive';
     case InventoryView = 'inventory.view';
     case InventoryAdjust = 'inventory.adjust';
+    case InventoryCostView = 'inventory.cost.view';
+    case InventoryCostManage = 'inventory.cost.manage';
     case ListingsView = 'listings.view';
     case ListingsCreate = 'listings.create';
     case ListingsUpdate = 'listings.update';
@@ -78,6 +80,7 @@ enum PermissionKey: string
     case FiscalSettingsView = 'fiscal_settings.view';
     case FiscalSettingsManage = 'fiscal_settings.manage';
     case AnalyticsView = 'analytics.view';
+    case AuditView = 'audit.view';
     case SettingsView = 'settings.view';
     case SettingsManage = 'settings.manage';
 }

@@ -9,12 +9,14 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Modules\Access\Http\Controllers\AccessController;
 use App\Modules\Analytics\Http\Controllers\AdminDashboardController;
+use App\Modules\Audit\Http\Controllers\ActivityController;
 use App\Modules\Cart\Http\Controllers\CartController;
 use App\Modules\Catalog\Http\Controllers\CategoryController;
 use App\Modules\Catalog\Http\Controllers\ProductController;
 use App\Modules\Catalog\Http\Controllers\ProductOptionController;
 use App\Modules\Catalog\Http\Controllers\ProductVariantController;
 use App\Modules\Checkout\Http\Controllers\CheckoutController;
+use App\Modules\Costing\Http\Controllers\InventoryCostController;
 use App\Modules\Customers\Http\Controllers\CustomerAddressController;
 use App\Modules\Customers\Http\Controllers\CustomerController;
 use App\Modules\Fiscal\Http\Controllers\FiscalDocumentController;
@@ -25,6 +27,7 @@ use App\Modules\Fulfillment\Http\Controllers\ShipmentController;
 use App\Modules\Inventory\Http\Controllers\InventoryController;
 use App\Modules\Inventory\Http\Controllers\InventoryLocationController;
 use App\Modules\Listings\Http\Controllers\ListingController;
+use App\Modules\Notifications\Http\Controllers\AdminNotificationController;
 use App\Modules\Orders\Http\Controllers\OrderController;
 use App\Modules\Payments\Http\Controllers\OrderPaymentTermsController;
 use App\Modules\Payments\Http\Controllers\PaymentController;
@@ -220,6 +223,10 @@ Route::middleware(['auth', 'auth.session', 'verified'])
             Route::get('/inventory/transfers/create', [InventoryController::class, 'createTransfer'])
                 ->name('inventory.transfers.create');
             Route::post('/inventory/transfers', [InventoryController::class, 'transfer'])->name('inventory.transfers.store');
+            Route::get('/inventory/valuation', [InventoryCostController::class, 'index'])
+                ->middleware('can:inventory.cost.view')->name('inventory.cost.index');
+            Route::post('/inventory/locations/{location}/variants/{variant}/initialize-cost', [InventoryCostController::class, 'initialize'])
+                ->middleware('can:inventory.cost.manage')->whereUuid(['location', 'variant'])->name('inventory.cost.initialize');
             Route::get('/inventory/locations', [InventoryLocationController::class, 'index'])->name('inventory.locations.index');
             Route::get('/inventory/locations/create', [InventoryLocationController::class, 'create'])
                 ->name('inventory.locations.create');
@@ -268,6 +275,11 @@ Route::middleware(['auth', 'auth.session', 'verified'])
             ->name('dashboard');
 
         Route::middleware(['tenant', 'store'])->group(function () {
+            Route::get('/activity', [ActivityController::class, 'index'])->middleware('can:audit.view')->name('activity.index');
+            Route::get('/notifications', [AdminNotificationController::class, 'index'])->name('notifications.index');
+            Route::post('/notifications/read-all', [AdminNotificationController::class, 'readAll'])->name('notifications.read-all');
+            Route::post('/notifications/{notification}/read', [AdminNotificationController::class, 'read'])->whereUuid('notification')->name('notifications.read');
+            Route::post('/notifications/{notification}/dismiss', [AdminNotificationController::class, 'dismiss'])->whereUuid('notification')->name('notifications.dismiss');
             Route::get('/fiscal-documents', [FiscalDocumentController::class, 'index'])->middleware('can:fiscal_documents.view')->name('fiscal-documents.index');
             Route::get('/fiscal-documents/{fiscalDocument}', [FiscalDocumentController::class, 'show'])->middleware('can:fiscal_documents.view')->whereUuid('fiscalDocument')->name('fiscal-documents.show');
             Route::post('/fiscal-documents/{fiscalDocument}/submit-sunat', [FiscalDocumentController::class, 'submitSunat'])->middleware(['can:fiscal_documents.manage', 'throttle:sunat-submit'])->whereUuid('fiscalDocument')->name('fiscal-documents.submit-sunat');

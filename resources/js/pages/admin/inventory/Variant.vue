@@ -7,7 +7,7 @@ import AdminLayout from '../../../layouts/AdminLayout.vue';
 interface Product { id: string; name: string }
 interface Variant { id: string; name: string | null; sku: string }
 interface Location { id: string; name: string; code: string }
-interface Level { location_id: string; location_name: string; location_code: string; on_hand: number; reserved: number; available: number }
+interface Level { location_id: string; location_name: string; location_code: string; on_hand: number; reserved: number; available: number; cost_status?: string; average_unit_cost?: string | null; inventory_value?: string | null; cost_currency?: string | null }
 interface Movement { id: string; location_name: string; type: string; quantity_delta: number; reason: string | null; occurred_at: string }
 interface PageLink { url: string | null; label: string; active: boolean }
 
@@ -18,6 +18,8 @@ const props = defineProps<{
     movements: { data: Movement[]; links: PageLink[] };
     locations: Location[];
     can_adjust: boolean;
+    can_view_cost: boolean;
+    can_manage_cost: boolean;
 }>();
 
 const selectedLocationId = ref('');
@@ -26,6 +28,8 @@ const submit = () => form.post(`/admin/inventory/locations/${selectedLocationId.
     preserveScroll: true,
     onSuccess: () => form.reset(),
 });
+const costForms = Object.fromEntries(props.levels.map((level) => [level.location_id, useForm({ unit_cost: '', currency: 'PEN' })]));
+const initializeCost = (level: Level) => costForms[level.location_id].post(`/admin/inventory/locations/${level.location_id}/variants/${props.variant.id}/initialize-cost`, { preserveScroll: true });
 </script>
 
 <template>
@@ -45,6 +49,7 @@ const submit = () => form.post(`/admin/inventory/locations/${selectedLocationId.
                     <p class="font-mono text-xs tracking-[0.16em] text-[#637067] uppercase">{{ level.location_code }}</p>
                     <h2 class="mt-2 text-xl font-semibold">{{ level.location_name }}</h2>
                     <dl class="mt-5 grid grid-cols-3 gap-2 text-sm"><div><dt class="text-[#637067]">On hand</dt><dd class="mt-1 text-lg font-semibold tabular-nums">{{ level.on_hand }}</dd></div><div><dt class="text-[#637067]">Reserved</dt><dd class="mt-1 text-lg font-semibold tabular-nums">{{ level.reserved }}</dd></div><div><dt class="text-[#637067]">Available</dt><dd class="mt-1 text-lg font-semibold tabular-nums">{{ level.available }}</dd></div></dl>
+                    <div v-if="can_view_cost" class="mt-5 border-t border-[#17211b]/15 pt-4"><p class="text-xs font-semibold tracking-wide uppercase" :class="level.cost_status === 'ACTIVE' ? 'text-emerald-800' : 'text-amber-800'">{{ level.cost_status }}</p><dl class="mt-3 grid grid-cols-2 gap-3 text-sm"><div><dt class="text-[#637067]">Average cost</dt><dd class="mt-1 font-mono font-semibold">{{ level.average_unit_cost === null ? 'Not initialized' : `${level.cost_currency} ${level.average_unit_cost}` }}</dd></div><div><dt class="text-[#637067]">Inventory value</dt><dd class="mt-1 font-mono font-semibold">{{ level.inventory_value === null ? 'Unavailable' : `${level.cost_currency} ${level.inventory_value}` }}</dd></div></dl><form v-if="can_manage_cost && level.cost_status === 'UNINITIALIZED' && level.on_hand > 0" class="mt-4 grid grid-cols-[1fr_6rem_auto] gap-2" @submit.prevent="initializeCost(level)"><input v-model="costForms[level.location_id].unit_cost" required inputmode="decimal" placeholder="Unit cost" class="min-w-0 border bg-white px-3 py-2 text-sm" /><input v-model="costForms[level.location_id].currency" required maxlength="3" class="min-w-0 border bg-white px-3 py-2 font-mono text-sm uppercase" /><button :disabled="costForms[level.location_id].processing" class="bg-[#17211b] px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Initialize</button><FieldError class="col-span-3" :message="costForms[level.location_id].errors.unit_cost ?? costForms[level.location_id].errors.currency" /></form></div>
                 </article>
                 <p v-if="!levels.length" class="border border-dashed border-[#17211b]/25 p-6 text-[#637067] sm:col-span-2 lg:col-span-3">No stock has been recorded for this variant.</p>
             </div>

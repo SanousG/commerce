@@ -20,6 +20,8 @@ transactional module depends on Analytics and no dashboard query writes data.
 - The selected range applies to commercial history. Operational attention
   counts are current-state workloads and intentionally are not limited by the
   selected range.
+- Profitability uses `fulfillments.fulfilled_at` for both realized revenue and
+  COGS so commercial and cost recognition remain in the same period.
 
 ## Money and currency
 
@@ -65,6 +67,19 @@ transactional module depends on Analytics and no dashboard query writes data.
 - **Refunded Amount**: sum of `COMPLETED` Refund amounts whose `completed_at` is
   in the selected range. `PENDING`, `FAILED`, and `CANCELLED` do not contribute.
 - **Pending refunds**: current count of `PENDING` Refunds for the Store.
+
+### Gross profitability
+
+- **Realized revenue ex tax**: immutable Order Item `line_total - tax_amount`,
+  prorated by quantity in Fulfillments completed inside the selected range.
+- **COGS**: sum of immutable Fulfillment Item COGS snapshots in that same range.
+- **Gross Profit**: realized revenue ex tax minus COGS.
+- **Gross Margin**: Gross Profit divided by realized revenue ex tax.
+- **Cost Coverage**: fulfilled units with a cost snapshot in Store currency
+  divided by all fulfilled units. COGS shows known cost when incomplete, but
+  Gross Profit and Gross Margin are withheld until coverage is 100%.
+- Refunds remain a separate metric and do not rewrite historical realized gross
+  profit. No FX, shipping allocation, operating expenses, or net profit exists.
 
 ### Fulfillment and shipping
 
@@ -125,6 +140,7 @@ payload section is included only when the user has its domain view permission:
 - Procurement: `procurement.view`
 - Returns and exchanges: `returns.view` / `exchanges.view`
 - Fiscal/SUNAT: `fiscal_documents.view`
+- Costing and gross profitability: `inventory.cost.view`
 
 Order sales remain visible with `orders.view`; ledger detail requires
 `payments.view`. Unauthorized query services are not executed and their keys are

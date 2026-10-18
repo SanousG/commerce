@@ -145,7 +145,7 @@ class PricingController extends Controller
         $tenant = $context->get();
         $scopedList = $tenant->priceLists()->findOrFail($priceList);
         $scopedVariant = ProductVariant::query()->where('tenant_id', $tenant->getKey())->findOrFail($variant);
-        $action->handle($tenant, $scopedList, $scopedVariant, $request->validated('amount'));
+        $action->handle($tenant, $scopedList, $scopedVariant, $request->validated('amount'), $request->user());
 
         return back()->with('status', 'Price saved.');
     }

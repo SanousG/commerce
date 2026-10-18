@@ -3,6 +3,10 @@
 namespace App\Modules\Payments\Application;
 
 use App\Models\User;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Orders\Domain\Enums\OrderStatus;
 use App\Modules\Orders\Domain\Models\Order;
 use App\Modules\Payments\Domain\Enums\PaymentProvider;
@@ -22,6 +26,7 @@ class CaptureManualPayment
     public function __construct(
         private readonly OrderPaymentCalculator $calculator,
         private readonly OrderPaymentStatusUpdater $statusUpdater,
+        private readonly AuditRecorder $audit,
     ) {}
 
     public function handle(
@@ -85,6 +90,22 @@ class CaptureManualPayment
                 'external_reference' => $externalReference ?: $lockedPayment->external_reference,
             ]);
             $this->statusUpdater->update($lockedOrder);
+            $this->audit->record(
+                $tenant,
+                $actor === null ? AuditActorType::System : AuditActorType::User,
+                AuditAction::PaymentCaptured,
+                AuditSubjectType::Payment,
+                (string) $lockedPayment->getKey(),
+                [
+                    'transaction_id' => $transaction->getKey(),
+                    'amount' => $transaction->amount,
+                    'currency' => $transaction->currency,
+                ],
+                $store,
+                $actor,
+                idempotencyKey: $key,
+                subjectLabel: $lockedOrder->order_number,
+            );
 
             return $transaction;
         });

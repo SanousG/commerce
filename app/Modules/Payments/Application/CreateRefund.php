@@ -3,6 +3,12 @@
 namespace App\Modules\Payments\Application;
 
 use App\Models\User;
+use App\Modules\Access\Domain\Enums\PermissionKey;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
+use App\Modules\Notifications\Application\BestEffortNotificationManager;
+use App\Modules\Notifications\Application\NotificationRecipientResolver;
+use App\Modules\Notifications\Domain\Enums\NotificationSeverity;
+use App\Modules\Notifications\Domain\Enums\NotificationType;
 use App\Modules\Orders\Domain\Models\Order;
 use App\Modules\Payments\Domain\Enums\PaymentTransactionStatus;
 use App\Modules\Payments\Domain\Enums\PaymentTransactionType;
@@ -15,9 +21,15 @@ use App\Modules\Tenancy\Domain\Models\Tenant;
 use Brick\Math\BigDecimal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class CreateRefund
 {
+    public function __construct(
+        private readonly NotificationRecipientResolver $recipients,
+        private readonly BestEffortNotificationManager $notifications,
+    ) {}
+
     public function handle(
         Tenant $tenant,
         Store $store,
@@ -56,6 +68,8 @@ class CreateRefund
                     throw ValidationException::withMessages(['idempotency_key' => 'This idempotency key was used with different refund data.']);
                 }
 
+                $this->notifyPendingAfterCommit($existing);
+
                 return $existing;
             }
             if ($normalizedAmount->isLessThanOrEqualTo(0)) {
@@ -76,7 +90,7 @@ class CreateRefund
                 throw ValidationException::withMessages(['amount' => 'The refund amount exceeds the refundable payment balance.']);
             }
 
-            return Refund::query()->create([
+            $refund = Refund::query()->create([
                 'tenant_id' => $tenant->getKey(), 'store_id' => $store->getKey(), 'order_id' => $order->getKey(),
                 'payment_id' => $lockedPayment->getKey(), 'status' => RefundStatus::Pending,
                 'amount' => (string) $normalizedAmount, 'currency' => $lockedPayment->currency,
@@ -84,6 +98,34 @@ class CreateRefund
                 'return_id' => $lockedReturn?->getKey(),
                 'created_by_user_id' => $actor?->getKey(),
             ]);
+            $this->notifyPendingAfterCommit($refund);
+
+            return $refund;
+        });
+    }
+
+    private function notifyPendingAfterCommit(Refund $refund): void
+    {
+        DB::afterCommit(function () use ($refund): void {
+            try {
+                $recipients = $this->recipients->userIds($refund->tenant_id, [PermissionKey::RefundsManage]);
+                $this->notifications->deliverCondition(
+                    $refund->tenant_id,
+                    $refund->store_id,
+                    $recipients,
+                    'refund:'.$refund->getKey(),
+                    NotificationType::RefundPending,
+                    NotificationSeverity::Warning,
+                    'Refund pending',
+                    'A refund requires completion.',
+                    '/admin/refunds/'.$refund->getKey(),
+                    ['refund_id' => $refund->getKey()],
+                    AuditSubjectType::Refund->value,
+                    (string) $refund->getKey(),
+                );
+            } catch (Throwable $exception) {
+                report($exception);
+            }
         });
     }
 

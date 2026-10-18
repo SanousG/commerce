@@ -3,6 +3,7 @@
 namespace Tests\Feature\Fulfillment;
 
 use App\Models\User;
+use App\Modules\Costing\Application\InitializeInventoryCost;
 use App\Modules\Fulfillment\Application\CompleteFulfillment;
 use App\Modules\Fulfillment\Application\CreateFulfillment;
 use App\Modules\Fulfillment\Application\StartFulfillment;
@@ -25,6 +26,17 @@ use Tests\Feature\Payments\PaymentsFeatureTestCase;
 
 abstract class FulfillmentFeatureTestCase extends PaymentsFeatureTestCase
 {
+    protected function readyOrder(Tenant $tenant, Store $store, ?User $actor = null, int $quantity = 2): array
+    {
+        $result = parent::readyOrder($tenant, $store, $actor, $quantity);
+        [, , , $variant, $level] = $result;
+        app(InitializeInventoryCost::class)->handle(
+            $tenant, $level->location, $variant, '10.000000', $store->currency, $actor,
+        );
+
+        return $result;
+    }
+
     protected function reservationFor(Order $order): InventoryReservation
     {
         $lineIds = $order->items()->pluck('checkout_line_id');
@@ -123,6 +135,9 @@ abstract class FulfillmentFeatureTestCase extends PaymentsFeatureTestCase
             20,
             $actor ?? User::factory()->create(),
             'Fulfillment test stock',
+        );
+        app(InitializeInventoryCost::class)->handle(
+            $tenant, $secondLocation, $first->variant, '10.000000', $order->currency, $actor,
         );
         $second = app(ReserveInventory::class)->handle(
             $tenant,

@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'tenant_id', 'store_id', 'order_id', 'fulfillment_id', 'order_item_id', 'inventory_reservation_id',
-    'inventory_location_id', 'product_variant_id', 'quantity',
+    'inventory_location_id', 'product_variant_id', 'quantity', 'unit_cost_snapshot', 'cogs_amount', 'cost_currency',
 ])]
 class FulfillmentItem extends Model
 {
@@ -64,6 +64,6 @@ class FulfillmentItem extends Model
 
     protected function casts(): array
     {
-        return ['quantity' => 'integer'];
+        return ['quantity' => 'integer', 'unit_cost_snapshot' => 'decimal:6', 'cogs_amount' => 'decimal:4'];
     }
 }

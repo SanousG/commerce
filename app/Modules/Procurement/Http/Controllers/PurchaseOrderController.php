@@ -3,6 +3,10 @@
 namespace App\Modules\Procurement\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Catalog\Domain\Enums\ProductVariantStatus;
 use App\Modules\Inventory\Domain\Enums\InventoryLocationStatus;
 use App\Modules\Inventory\Domain\Models\InventoryLocation;
@@ -94,6 +98,7 @@ class PurchaseOrderController extends Controller
         TenantContext $tenants,
         CreatePurchaseOrder $createOrder,
         AddPurchaseOrderItem $addItem,
+        AuditRecorder $audit,
     ): RedirectResponse {
         $data = $request->validated();
         $tenant = $tenants->get();
@@ -104,7 +109,7 @@ class PurchaseOrderController extends Controller
         abort_unless($products->count() === count($data['items']), 404);
         $currency = $data['currency'];
 
-        $order = DB::transaction(function () use ($tenant, $supplier, $currency, $data, $request, $createOrder, $addItem): PurchaseOrder {
+        $order = DB::transaction(function () use ($tenant, $supplier, $currency, $data, $request, $createOrder, $addItem, $audit): PurchaseOrder {
             $order = $createOrder->handle($tenant, $supplier, $currency, $data['expected_at'], $data['notes'], $request->user());
             foreach ($data['items'] as $line) {
                 $product = SupplierProduct::query()->where('tenant_id', $tenant->getKey())
@@ -113,6 +118,24 @@ class PurchaseOrderController extends Controller
                     $tenant, $order, $product, $line['quantity'], $line['unit_cost'] ?? null, $line['description'] ?? null,
                 );
             }
+
+            $order = $order->fresh('items');
+            $audit->record(
+                tenant: $tenant,
+                actorType: AuditActorType::User,
+                action: AuditAction::PurchaseOrderCreated,
+                subjectType: AuditSubjectType::PurchaseOrder,
+                subjectId: $order->getKey(),
+                metadata: [
+                    'supplier_id' => $supplier->getKey(),
+                    'item_count' => $order->items->count(),
+                    'quantity' => (int) $order->items->sum('quantity_ordered'),
+                    'grand_total' => $order->grand_total,
+                    'currency' => $order->currency,
+                ],
+                actor: $request->user(),
+                subjectLabel: $order->number,
+            );
 
             return $order;
         });
@@ -206,14 +229,14 @@ class PurchaseOrderController extends Controller
 
     public function markOrdered(ProcurementActionRequest $request, TenantContext $tenants, MarkPurchaseOrderOrdered $action, string $purchaseOrder): RedirectResponse
     {
-        $action->handle($tenants->get(), $this->order($tenants, $purchaseOrder));
+        $action->handle($tenants->get(), $this->order($tenants, $purchaseOrder), $request->user());
 
         return back()->with('status', 'Purchase order marked as ordered.');
     }
 
     public function cancel(ProcurementActionRequest $request, TenantContext $tenants, CancelPurchaseOrder $action, string $purchaseOrder): RedirectResponse
     {
-        $action->handle($tenants->get(), $this->order($tenants, $purchaseOrder));
+        $action->handle($tenants->get(), $this->order($tenants, $purchaseOrder), $request->user());
 
         return back()->with('status', 'Purchase order cancelled.');
     }

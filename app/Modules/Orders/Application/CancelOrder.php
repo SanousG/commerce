@@ -3,6 +3,10 @@
 namespace App\Modules\Orders\Application;
 
 use App\Models\User;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Fulfillment\Domain\Enums\FulfillmentStatus;
 use App\Modules\Fulfillment\Domain\Enums\ShipmentStatus;
 use App\Modules\Fulfillment\Domain\Models\Fulfillment;
@@ -19,6 +23,7 @@ class CancelOrder
     public function __construct(
         private readonly OrderInventoryReservations $reservations,
         private readonly OrderHasSuccessfulCaptures $captures,
+        private readonly AuditRecorder $audit,
     ) {}
 
     public function handle(Tenant $tenant, Order $order, string $reason, ?User $actor = null): Order
@@ -77,6 +82,18 @@ class CancelOrder
                 'tenant_id' => $tenant->getKey(), 'from_status' => OrderStatus::Confirmed,
                 'to_status' => OrderStatus::Cancelled, 'actor_user_id' => $actor?->getKey(), 'reason' => $reason,
             ]);
+            $this->audit->record(
+                $tenant,
+                $actor === null ? AuditActorType::System : AuditActorType::User,
+                AuditAction::OrderCancelled,
+                AuditSubjectType::Order,
+                (string) $locked->getKey(),
+                ['status' => OrderStatus::Cancelled->value],
+                $locked->store,
+                $actor,
+                idempotencyKey: 'order.cancelled:'.$locked->getKey(),
+                subjectLabel: $locked->order_number,
+            );
 
             return $locked->fresh(['history']);
         });

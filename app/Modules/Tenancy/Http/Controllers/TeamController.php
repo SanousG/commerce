@@ -81,11 +81,12 @@ class TeamController extends Controller
     }
 
     public function reactivate(
+        Request $request,
         TenantContext $tenantContext,
         ReactivateTenantMember $reactivate,
         string $member,
     ): RedirectResponse {
-        $reactivate->handle($tenantContext->get(), $member);
+        $reactivate->handle($tenantContext->get(), $member, $request->user());
 
         return back()->with('status', 'Member reactivated.');
     }

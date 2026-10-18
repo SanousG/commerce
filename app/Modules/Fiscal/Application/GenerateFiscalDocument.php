@@ -3,6 +3,10 @@
 namespace App\Modules\Fiscal\Application;
 
 use App\Models\User;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Fiscal\Domain\Enums\FiscalConfigurationStatus;
 use App\Modules\Fiscal\Domain\Enums\FiscalDocumentStatus;
 use App\Modules\Fiscal\Domain\Enums\FiscalDocumentType;
@@ -20,6 +24,8 @@ use Illuminate\Validation\ValidationException;
 
 class GenerateFiscalDocument
 {
+    public function __construct(private readonly AuditRecorder $audit) {}
+
     /**
      * @param  array{document_type: string, customer_document_type?: ?string, customer_document_number?: ?string, customer_name?: ?string, customer_address?: ?string}  $input
      */
@@ -150,6 +156,18 @@ class GenerateFiscalDocument
             ]);
             $document->items()->createMany($snapshots);
             $series->update(['next_number' => $sequence + 1]);
+            $this->audit->record(
+                $tenant,
+                AuditActorType::User,
+                AuditAction::FiscalDocumentIssued,
+                AuditSubjectType::FiscalDocument,
+                (string) $document->getKey(),
+                ['status' => $document->status->value],
+                $store,
+                $actor,
+                idempotencyKey: 'fiscal.generated:'.$document->getKey(),
+                subjectLabel: $document->full_number,
+            );
 
             return $document->load('items');
         }, 3);

@@ -2,6 +2,11 @@
 
 namespace App\Modules\Procurement\Application;
 
+use App\Models\User;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Inventory\Application\ReceiveInventory;
 use App\Modules\Inventory\Domain\Models\InventoryLocation;
 use App\Modules\Procurement\Domain\Enums\PurchaseOrderStatus;
@@ -11,6 +16,8 @@ use App\Modules\Procurement\Domain\Models\PurchaseOrderItem;
 use App\Modules\Procurement\Domain\Models\PurchaseReceipt;
 use App\Modules\Procurement\Domain\Models\PurchaseReceiptItem;
 use App\Modules\Tenancy\Domain\Models\Tenant;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -19,11 +26,12 @@ class PostPurchaseReceipt
     public function __construct(
         private readonly ReceiveInventory $inventory,
         private readonly PurchaseOrderReceivingStatusUpdater $statusUpdater,
+        private readonly AuditRecorder $audit,
     ) {}
 
-    public function handle(Tenant $tenant, PurchaseReceipt $receipt): PurchaseReceipt
+    public function handle(Tenant $tenant, PurchaseReceipt $receipt, ?User $actor = null): PurchaseReceipt
     {
-        return DB::transaction(function () use ($tenant, $receipt): PurchaseReceipt {
+        return DB::transaction(function () use ($tenant, $receipt, $actor): PurchaseReceipt {
             $order = PurchaseOrder::query()->where('tenant_id', $tenant->getKey())
                 ->lockForUpdate()->findOrFail($receipt->purchase_order_id);
             $receipt = PurchaseReceipt::query()->where('tenant_id', $tenant->getKey())->lockForUpdate()->findOrFail($receipt->getKey());
@@ -63,14 +71,37 @@ class PostPurchaseReceipt
             }
 
             $location = InventoryLocation::query()->where('tenant_id', $tenant->getKey())->findOrFail($receipt->inventory_location_id);
-            $this->inventory->handle($tenant, $location, $receiptItems->sortBy('variant_id')->map(fn (PurchaseReceiptItem $item): array => [
-                'product_variant_id' => $item->variant_id,
-                'quantity' => $item->quantity,
-                'reference_id' => $item->getKey(),
-            ])->values()->all(), $receipt->getKey(), $receipt->receiver);
+            $effectiveActor = $actor ?? $receipt->receiver;
+            $this->inventory->handle($tenant, $location, $receiptItems->sortBy('variant_id')->map(
+                fn (PurchaseReceiptItem $item): array => [
+                    'product_variant_id' => $item->variant_id,
+                    'quantity' => $item->quantity,
+                    'unit_cost' => $item->unit_cost,
+                    'currency' => $orderItems[$item->purchase_order_item_id]->currency,
+                    'reference_id' => $item->getKey(),
+                ],
+            )->values()->all(), $receipt->getKey(), $effectiveActor);
 
             $receipt->update(['status' => PurchaseReceiptStatus::Posted]);
             $this->statusUpdater->handle($tenant, $order);
+            $totalCost = $receiptItems->reduce(
+                fn (BigDecimal $total, PurchaseReceiptItem $item): BigDecimal => $total->plus(BigDecimal::of($item->unit_cost)->multipliedBy($item->quantity)),
+                BigDecimal::zero(),
+            )->toScale(4, RoundingMode::HalfUp);
+            $this->audit->record(
+                tenant: $tenant, actorType: $effectiveActor === null ? AuditActorType::System : AuditActorType::User,
+                action: AuditAction::PurchaseReceiptPosted, subjectType: AuditSubjectType::PurchaseReceipt,
+                subjectId: $receipt->getKey(),
+                metadata: [
+                    'purchase_order_number' => $order->number,
+                    'quantity' => (int) $receiptItems->sum('quantity'),
+                    'total_cost' => (string) $totalCost,
+                    'currency' => $order->currency,
+                ],
+                actor: $effectiveActor,
+                idempotencyKey: 'purchase_receipt.posted:'.$receipt->getKey(),
+                subjectLabel: $receipt->reference ?? $receipt->getKey(),
+            );
 
             return $receipt->refresh()->load('items');
         });

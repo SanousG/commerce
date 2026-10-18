@@ -63,7 +63,7 @@ class FulfillmentController extends Controller
         $canManageShipments = $request->user()->can('shipments.manage');
 
         return Inertia::render('admin/fulfillments/Show', [
-            'fulfillment' => $this->serialize($scoped, $canManageShipments),
+            'fulfillment' => $this->serialize($scoped, $canManageShipments, $request->user()->can('inventory.cost.view')),
             'paymentEligibility' => $eligibility,
             'capabilities' => [
                 'manage' => $canManage, 'complete' => $canComplete, 'shipments_manage' => $canManageShipments,
@@ -135,7 +135,7 @@ class FulfillmentController extends Controller
             ->where('store_id', $stores->id())->findOrFail($id);
     }
 
-    private function serialize(Fulfillment $fulfillment, bool $canManageShipments): array
+    private function serialize(Fulfillment $fulfillment, bool $canManageShipments, bool $canViewCost): array
     {
         $shipment = $fulfillment->shipment;
 
@@ -148,11 +148,20 @@ class FulfillmentController extends Controller
             'cancelled_at' => $fulfillment->cancelled_at?->toISOString(),
             'cancellation_reason' => $fulfillment->cancellation_reason,
             'created_at' => $fulfillment->created_at?->toISOString(),
-            'items' => $fulfillment->items->map(fn ($item): array => [
-                'id' => $item->getKey(), 'product_name' => $item->orderItem->product_name,
-                'variant_name' => $item->orderItem->variant_name, 'sku' => $item->orderItem->sku,
-                'quantity' => $item->quantity, 'inventory_reservation_id' => $item->inventory_reservation_id,
-            ])->values(),
+            'items' => $fulfillment->items->map(function ($item) use ($canViewCost): array {
+                $data = [
+                    'id' => $item->getKey(), 'product_name' => $item->orderItem->product_name,
+                    'variant_name' => $item->orderItem->variant_name, 'sku' => $item->orderItem->sku,
+                    'quantity' => $item->quantity, 'inventory_reservation_id' => $item->inventory_reservation_id,
+                ];
+                if ($canViewCost) {
+                    $data['unit_cost_snapshot'] = $item->unit_cost_snapshot;
+                    $data['cogs_amount'] = $item->cogs_amount;
+                    $data['cost_currency'] = $item->cost_currency;
+                }
+
+                return $data;
+            })->values(),
             'history' => $fulfillment->history->map(fn (FulfillmentStatusHistory $entry): array => $this->history($entry))->values(),
             'shipments' => $shipment === null ? [] : [
                 $this->shipment($shipment, $canManageShipments, $fulfillment->status === FulfillmentStatus::Fulfilled),

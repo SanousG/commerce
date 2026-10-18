@@ -97,10 +97,21 @@ class InventoryPageTest extends InventoryFeatureTestCase
         $location = $tenant->defaultInventoryLocation()->sole();
         $variant = $this->createVariant($tenant);
         $destination = $this->createLocation($tenant);
+        $this->stock($tenant, $location, $variant, 2);
         $this->actingAs($member)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
 
         $this->get(route('admin.inventory.index'))->assertOk();
-        $this->get(route('admin.inventory.variants.show', $variant))->assertOk();
+        $this->get(route('admin.inventory.variants.show', $variant))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('can_view_cost', false)
+                ->where('can_manage_cost', false)
+                ->missing('levels.0.average_unit_cost')
+                ->missing('levels.0.inventory_value')
+                ->missing('levels.0.cost_currency'));
+        $this->get(route('admin.inventory.cost.index'))->assertForbidden();
+        $this->post(route('admin.inventory.cost.initialize', [$location, $variant]), [
+            'unit_cost' => '10', 'currency' => 'PEN',
+        ])->assertForbidden();
         $this->post(route('admin.inventory.adjust', [$location, $variant]), [
             'quantity_delta' => 1, 'reason' => 'Denied',
         ])->assertForbidden();

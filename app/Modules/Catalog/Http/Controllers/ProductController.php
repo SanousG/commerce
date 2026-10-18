@@ -71,7 +71,7 @@ class ProductController extends Controller
     {
         $product = $action->handle($context->get(), $request->safe()->only([
             'name', 'description', 'sku', 'barcode', 'categories',
-        ]));
+        ]), $request->user());
 
         return to_route('admin.products.edit', $product)->with('status', 'Product created.');
     }
@@ -159,7 +159,7 @@ class ProductController extends Controller
         $scopedProduct = $context->get()->products()->findOrFail($product);
         $action->handle($context->get(), $scopedProduct, $request->safe()->only([
             'name', 'description', 'status', 'tax_category_id', 'categories',
-        ]));
+        ]), $request->user());
 
         return back()->with('status', 'Product updated.');
     }
@@ -173,7 +173,7 @@ class ProductController extends Controller
     ): RedirectResponse {
         abort_unless($access->canArchiveProducts($request->user()), 403);
         $scopedProduct = $context->get()->products()->findOrFail($product);
-        $action->handle($context->get(), $scopedProduct);
+        $action->handle($context->get(), $scopedProduct, $request->user());
 
         return to_route('admin.products.index')->with('status', 'Product archived.');
     }

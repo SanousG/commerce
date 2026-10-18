@@ -4,6 +4,7 @@ namespace App\Modules\Inventory\Application;
 
 use App\Models\User;
 use App\Modules\Catalog\Domain\Models\ProductVariant;
+use App\Modules\Costing\Application\InventoryCosting;
 use App\Modules\Inventory\Domain\Enums\InventoryLocationStatus;
 use App\Modules\Inventory\Domain\Enums\InventoryMovementType;
 use App\Modules\Inventory\Domain\Models\InventoryLocation;
@@ -18,10 +19,11 @@ class ReceiveInventory
     public function __construct(
         private readonly InventoryLevelLocker $levels,
         private readonly InventoryWriter $writer,
+        private readonly InventoryCosting $costing,
     ) {}
 
     /**
-     * @param  list<array{product_variant_id: string, quantity: int, reference_id: string}>  $items
+     * @param  list<array{product_variant_id: string, quantity: int, unit_cost: string, currency: string, reference_id: string}>  $items
      * @return Collection<int, InventoryMovement>
      */
     public function handle(Tenant $tenant, InventoryLocation $location, array $items, string $correlationId, ?User $actor = null): Collection
@@ -53,11 +55,18 @@ class ReceiveInventory
                 ->map(fn (string $variantId): array => [$location->getKey(), $variantId])->all())
                 ->keyBy('product_variant_id');
 
-            return $items->map(fn (array $item) => $this->writer->change(
-                $levels[$item['product_variant_id']], $item['quantity'], 0,
-                InventoryMovementType::PurchaseReceipt, $actor,
-                referenceType: 'PURCHASE_RECEIPT_ITEM', referenceId: $item['reference_id'], correlationId: $correlationId,
-            ));
+            return $items->map(function (array $item) use ($levels, $actor, $correlationId) {
+                $level = $levels[$item['product_variant_id']];
+                $movement = $this->writer->change(
+                    $level, $item['quantity'], 0, InventoryMovementType::PurchaseReceipt, $actor,
+                    referenceType: 'PURCHASE_RECEIPT_ITEM', referenceId: $item['reference_id'], correlationId: $correlationId,
+                );
+                $this->costing->receive(
+                    $level, $movement, $item['unit_cost'], $item['currency'], $item['reference_id'], $correlationId, $actor,
+                );
+
+                return $movement;
+            });
         });
     }
 }

@@ -3,6 +3,11 @@
 namespace App\Modules\Fulfillment\Application;
 
 use App\Models\User;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
+use App\Modules\Costing\Application\InventoryCosting;
 use App\Modules\Fulfillment\Domain\Enums\FulfillmentStatus;
 use App\Modules\Fulfillment\Domain\Models\Fulfillment;
 use App\Modules\Inventory\Application\InventoryLevelLocker;
@@ -14,6 +19,8 @@ use App\Modules\Inventory\Domain\Models\InventoryReservation;
 use App\Modules\Orders\Domain\Enums\OrderStatus;
 use App\Modules\Orders\Domain\Models\Order;
 use App\Modules\Tenancy\Domain\Models\Tenant;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -22,8 +29,10 @@ class CompleteFulfillment
     public function __construct(
         private readonly InventoryLevelLocker $levels,
         private readonly InventoryWriter $writer,
+        private readonly InventoryCosting $costing,
         private readonly FulfillmentPaymentEligibility $paymentEligibility,
         private readonly OrderFulfillmentStatusUpdater $statusUpdater,
+        private readonly AuditRecorder $audit,
     ) {}
 
     public function handle(Tenant $tenant, Fulfillment $fulfillment, ?User $actor = null): Fulfillment
@@ -55,6 +64,7 @@ class CompleteFulfillment
             $levels = $this->levels->lockMany($tenant, $reservations->map(
                 fn (InventoryReservation $reservation): array => [$reservation->inventory_location_id, $reservation->product_variant_id],
             )->all())->keyBy(fn (InventoryLevel $level): string => $level->inventory_location_id.':'.$level->product_variant_id);
+            $this->costing->lockValuations($levels->values());
 
             foreach ($items as $item) {
                 $reservation = $reservations[$item->inventory_reservation_id];
@@ -74,7 +84,7 @@ class CompleteFulfillment
                     throw ValidationException::withMessages(['reservation' => 'A fulfillment allocation is no longer valid or available.']);
                 }
                 $level = $levels[$reservation->inventory_location_id.':'.$reservation->product_variant_id];
-                $this->writer->change(
+                $movement = $this->writer->change(
                     $level,
                     -$item->quantity,
                     -$item->quantity,
@@ -84,6 +94,7 @@ class CompleteFulfillment
                     referenceId: $item->getKey(),
                     correlationId: $locked->getKey(),
                 );
+                $this->costing->fulfill($level, $movement, $item, $locked->getKey(), $actor);
                 $committed = $reservation->committed_quantity + $item->quantity;
                 $reservation->update($committed === $reservation->quantity
                     ? ['committed_quantity' => $committed, 'status' => InventoryReservationStatus::Committed, 'committed_at' => now()]
@@ -96,6 +107,25 @@ class CompleteFulfillment
                 'to_status' => FulfillmentStatus::Fulfilled, 'actor_user_id' => $actor?->getKey(),
             ]);
             $this->statusUpdater->update($order);
+            $cogs = $items->reduce(
+                fn (BigDecimal $total, $item): BigDecimal => $total->plus($item->cogs_amount ?? '0'),
+                BigDecimal::zero(),
+            )->toScale(4, RoundingMode::HalfUp);
+            $this->audit->record(
+                tenant: $tenant, actorType: $actor === null ? AuditActorType::System : AuditActorType::User,
+                action: AuditAction::FulfillmentCompleted, subjectType: AuditSubjectType::Fulfillment,
+                subjectId: $locked->getKey(),
+                metadata: [
+                    'order_number' => $order->order_number,
+                    'quantity' => (int) $items->sum('quantity'),
+                    'cogs_amount' => (string) $cogs,
+                    'currency' => $items->first()?->cost_currency,
+                ],
+                store: $locked->store()->firstOrFail(),
+                actor: $actor,
+                idempotencyKey: 'fulfillment.completed:'.$locked->getKey(),
+                subjectLabel: $order->order_number,
+            );
 
             return $locked->fresh(['items', 'history']);
         });

@@ -3,6 +3,10 @@
 namespace App\Modules\Returns\Application;
 
 use App\Models\User;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Orders\Domain\Models\OrderItem;
 use App\Modules\Returns\Domain\Enums\ReturnItemCondition;
 use App\Modules\Returns\Domain\Enums\ReturnItemDisposition;
@@ -19,6 +23,7 @@ class InspectReturnItem
     public function __construct(
         private readonly ReturnEligibility $eligibility,
         private readonly ReturnTransition $transition,
+        private readonly AuditRecorder $audit,
     ) {}
 
     public function handle(
@@ -64,6 +69,20 @@ class InspectReturnItem
                 'accepted_quantity' => $acceptedQuantity, 'inspection_notes' => $notes,
                 'inspected_by_user_id' => $actor?->getKey(), 'inspected_at' => now(),
             ]);
+            $this->audit->record(
+                tenant: $tenant, actorType: $actor === null ? AuditActorType::System : AuditActorType::User,
+                action: AuditAction::ReturnInspected, subjectType: AuditSubjectType::ReturnItem,
+                subjectId: $lockedItem->getKey(),
+                metadata: [
+                    'return_id' => $lockedReturn->getKey(),
+                    'condition' => $condition->value,
+                    'disposition' => $disposition->value,
+                    'received_quantity' => $lockedItem->received_quantity,
+                    'accepted_quantity' => $acceptedQuantity,
+                ],
+                store: $store, actor: $actor,
+                subjectLabel: $lockedItem->order_item_id,
+            );
 
             return $lockedItem->fresh();
         });

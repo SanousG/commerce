@@ -70,7 +70,7 @@ class PurchaseReceiptController extends Controller
 
     public function post(ReceiveProcurementRequest $request, TenantContext $tenants, PostPurchaseReceipt $action, string $receipt): RedirectResponse
     {
-        $action->handle($tenants->get(), $this->receipt($tenants, $receipt));
+        $action->handle($tenants->get(), $this->receipt($tenants, $receipt), $request->user());
 
         return back()->with('status', 'Purchase receipt posted and inventory received.');
     }

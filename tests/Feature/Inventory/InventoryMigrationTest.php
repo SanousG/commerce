@@ -25,9 +25,13 @@ class InventoryMigrationTest extends InventoryFeatureTestCase
         $returnInventoryMigration = require database_path('migrations/2026_09_08_000029_add_return_inventory_support.php');
         $purchaseReceiptMigration = require database_path('migrations/2026_09_08_000033_create_purchase_receipts.php');
         $purchaseInventoryMigration = require database_path('migrations/2026_09_08_000034_add_purchase_receipt_inventory_support.php');
+        $costingMigration = require database_path('migrations/2026_09_08_000048_create_inventory_costing_tables.php');
+        $fulfillmentCostMigration = require database_path('migrations/2026_09_08_000049_add_cost_snapshot_to_fulfillment_items.php');
         $this->assertInstanceOf(Migration::class, $migration);
         $this->assertInstanceOf(Migration::class, $fulfillmentMigration);
         $this->assertInstanceOf(Migration::class, $partialCommitMigration);
+        $fulfillmentCostMigration->down();
+        $costingMigration->down();
         $purchaseInventoryMigration->down();
         $purchaseReceiptMigration->down();
         $returnInventoryMigration->down();
@@ -49,6 +53,8 @@ class InventoryMigrationTest extends InventoryFeatureTestCase
         $returnInventoryMigration->up();
         $purchaseReceiptMigration->up();
         $purchaseInventoryMigration->up();
+        $costingMigration->up();
+        $fulfillmentCostMigration->up();
         $firstId = InventoryLocation::query()->where('tenant_id', $tenant->getKey())->sole()->getKey();
         $this->assertTrue(Schema::hasTable('inventory_locations'));
         $this->assertTrue(Schema::hasTable('inventory_levels'));
@@ -61,6 +67,8 @@ class InventoryMigrationTest extends InventoryFeatureTestCase
             'status' => 'ACTIVE', 'is_default' => true,
         ]);
 
+        $fulfillmentCostMigration->down();
+        $costingMigration->down();
         $purchaseInventoryMigration->down();
         $purchaseReceiptMigration->down();
         $returnInventoryMigration->down();
@@ -77,6 +85,8 @@ class InventoryMigrationTest extends InventoryFeatureTestCase
         $returnInventoryMigration->up();
         $purchaseReceiptMigration->up();
         $purchaseInventoryMigration->up();
+        $costingMigration->up();
+        $fulfillmentCostMigration->up();
         $this->assertSame($firstId, InventoryLocation::query()->where('tenant_id', $tenant->getKey())->sole()->getKey());
     }
 

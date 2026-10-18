@@ -1,0 +1,21 @@
+<script setup lang="ts">
+import { Head, Link, router } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import AdminLayout from '../../../layouts/AdminLayout.vue';
+
+interface Row { location_id: string; variant_id: string; location_name: string; location_code: string; product_name: string; variant_name: string | null; sku: string; on_hand: number; status: string; average_unit_cost: string | null; inventory_value: string | null; currency: string | null }
+interface PageLink { url: string | null; label: string; active: boolean }
+const props = defineProps<{ valuations: { data: Row[]; links: PageLink[] }; totals: Array<{ currency: string; inventory_value: string }>; filters: { search: string } }>();
+const search = ref(props.filters.search);
+const submit = () => router.get('/admin/inventory/valuation', { search: search.value }, { preserveState: true, replace: true });
+</script>
+
+<template>
+    <Head title="Inventory valuation" />
+    <AdminLayout><section class="mx-auto max-w-[94rem]"><div class="flex flex-wrap items-end justify-between gap-5"><div><p class="font-mono text-xs tracking-[0.2em] text-emerald-800 uppercase">All company / Sensitive cost data</p><h1 class="mt-3 text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">Inventory valuation</h1><p class="mt-3 text-sm text-[#637067]">Moving weighted average by location and variant. Currencies are never combined.</p></div><Link href="/admin/inventory" class="border border-[#17211b] px-4 py-3 text-sm font-semibold">Open stock</Link></div>
+        <div class="mt-8 grid gap-3 sm:grid-cols-3"><article v-for="total in totals" :key="total.currency" class="border border-[#17211b]/15 bg-[#17211b] p-5 text-white"><p class="text-xs tracking-wide text-white/55 uppercase">Initialized value / {{ total.currency }}</p><p class="mt-3 font-mono text-2xl font-semibold">{{ total.currency }} {{ total.inventory_value }}</p></article><p v-if="!totals.length" class="border border-dashed p-5 text-sm text-[#637067]">No initialized inventory value.</p></div>
+        <form class="mt-8 flex gap-2" @submit.prevent="submit"><input v-model="search" placeholder="SKU, product, or location" class="min-w-0 flex-1 border border-[#17211b]/25 bg-white px-4 py-3" /><button class="bg-[#17211b] px-5 py-3 text-sm font-semibold text-white">Search</button></form>
+        <div class="mt-5 overflow-x-auto border border-[#17211b]/15 bg-[#f8f5ed]"><table class="w-full min-w-[62rem] text-left text-sm"><thead class="border-b text-xs tracking-wide text-[#637067] uppercase"><tr><th class="p-4">Product / variant</th><th class="p-4">Location</th><th class="p-4 text-right">On hand</th><th class="p-4">Status</th><th class="p-4 text-right">Average cost</th><th class="p-4 text-right">Value</th></tr></thead><tbody><tr v-for="row in valuations.data" :key="`${row.location_id}:${row.variant_id}`" class="border-b border-[#17211b]/10"><td class="p-4"><Link :href="`/admin/inventory/variants/${row.variant_id}`" class="font-semibold text-emerald-800">{{ row.product_name }}</Link><span class="block text-xs text-[#637067]">{{ row.variant_name ?? 'Default variant' }} / {{ row.sku }}</span></td><td class="p-4">{{ row.location_name }}<span class="block font-mono text-xs text-[#637067]">{{ row.location_code }}</span></td><td class="p-4 text-right font-semibold">{{ row.on_hand }}</td><td class="p-4"><span :class="row.status === 'ACTIVE' ? 'text-emerald-800' : 'text-amber-800'" class="font-mono text-xs font-semibold">{{ row.status }}</span></td><td class="p-4 text-right font-mono">{{ row.average_unit_cost === null ? '—' : `${row.currency} ${row.average_unit_cost}` }}</td><td class="p-4 text-right font-mono font-semibold">{{ row.inventory_value === null ? '—' : `${row.currency} ${row.inventory_value}` }}</td></tr><tr v-if="!valuations.data.length"><td colspan="6" class="p-8 text-center text-[#637067]">No inventory levels found.</td></tr></tbody></table></div>
+        <nav class="mt-6 flex flex-wrap gap-2"><template v-for="link in valuations.links" :key="link.label"><Link v-if="link.url" :href="link.url" class="border px-3 py-2 text-sm" :class="link.active ? 'bg-[#17211b] text-white' : ''" v-html="link.label" /></template></nav>
+    </section></AdminLayout>
+</template>

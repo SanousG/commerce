@@ -3,6 +3,10 @@
 namespace App\Modules\Tenancy\Application;
 
 use App\Models\User;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Tenancy\Domain\Enums\TenantMemberStatus;
 use App\Modules\Tenancy\Domain\Enums\TenantStatus;
 use App\Modules\Tenancy\Domain\Models\Tenant;
@@ -11,7 +15,10 @@ use Illuminate\Validation\ValidationException;
 
 class DeactivateTenantMember
 {
-    public function __construct(private readonly EnsureTenantHasActiveOwner $ownerGuard) {}
+    public function __construct(
+        private readonly EnsureTenantHasActiveOwner $ownerGuard,
+        private readonly AuditRecorder $audit,
+    ) {}
 
     public function handle(Tenant $tenant, User $actor, string $memberId): void
     {
@@ -28,6 +35,19 @@ class DeactivateTenantMember
                     throw ValidationException::withMessages(['member' => 'You cannot deactivate your own membership.']);
                 }
                 $member->update(['status' => TenantMemberStatus::Suspended]);
+                $this->audit->record(
+                    $lockedTenant,
+                    AuditActorType::User,
+                    AuditAction::TenantMemberDeactivated,
+                    AuditSubjectType::TenantMember,
+                    $member->getKey(),
+                    ['changes' => ['status' => [
+                        'from' => TenantMemberStatus::Active,
+                        'to' => TenantMemberStatus::Suspended,
+                    ]]],
+                    actor: $actor,
+                    subjectLabel: $member->user()->value('email'),
+                );
             }
         });
     }

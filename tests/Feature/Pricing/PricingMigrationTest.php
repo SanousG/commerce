@@ -51,6 +51,8 @@ class PricingMigrationTest extends PricingFeatureTestCase
         $fiscalSubmissionMigration = require database_path('migrations/2026_09_08_000040_create_fiscal_submissions.php');
         $sunatSubmissionMigration = require database_path('migrations/2026_09_08_000044_extend_fiscal_submissions_for_sunat.php');
         $dailySummaryMigration = require database_path('migrations/2026_09_08_000045_create_fiscal_daily_summaries.php');
+        $costingMigration = require database_path('migrations/2026_09_08_000048_create_inventory_costing_tables.php');
+        $fulfillmentCostMigration = require database_path('migrations/2026_09_08_000049_add_cost_snapshot_to_fulfillment_items.php');
         $this->assertInstanceOf(Migration::class, $migration);
         $this->assertInstanceOf(Migration::class, $inventoryMigration);
         $this->assertInstanceOf(Migration::class, $promotionMigration);
@@ -61,6 +63,12 @@ class PricingMigrationTest extends PricingFeatureTestCase
         $this->assertInstanceOf(Migration::class, $paymentMigration);
         $this->assertInstanceOf(Migration::class, $fulfillmentMigration);
         $this->assertInstanceOf(Migration::class, $partialCommitMigration);
+        $auditMigration = require database_path('migrations/2026_09_08_000051_create_audit_entries.php');
+        $notificationMigration = require database_path('migrations/2026_09_08_000052_create_admin_notifications.php');
+        $notificationMigration->down();
+        $auditMigration->down();
+        $fulfillmentCostMigration->down();
+        $costingMigration->down();
         $dailySummaryMigration->down();
         $sunatSubmissionMigration->down();
         $fiscalSubmissionMigration->down();
@@ -112,6 +120,8 @@ class PricingMigrationTest extends PricingFeatureTestCase
         $fiscalSubmissionMigration->up();
         $sunatSubmissionMigration->up();
         $dailySummaryMigration->up();
+        $costingMigration->up();
+        $fulfillmentCostMigration->up();
         $firstId = PriceList::query()->where('tenant_id', $tenant->getKey())->sole()->getKey();
         $this->assertTrue(Schema::hasTable('price_lists'));
         $this->assertTrue(Schema::hasTable('variant_prices'));
@@ -120,6 +130,8 @@ class PricingMigrationTest extends PricingFeatureTestCase
             'status' => 'ACTIVE', 'is_default' => true,
         ]);
 
+        $fulfillmentCostMigration->down();
+        $costingMigration->down();
         $dailySummaryMigration->down();
         $sunatSubmissionMigration->down();
         $fiscalSubmissionMigration->down();
@@ -168,6 +180,8 @@ class PricingMigrationTest extends PricingFeatureTestCase
         $fiscalSubmissionMigration->up();
         $sunatSubmissionMigration->up();
         $dailySummaryMigration->up();
+        $costingMigration->up();
+        $fulfillmentCostMigration->up();
         $this->assertSame($firstId, PriceList::query()->where('tenant_id', $tenant->getKey())->sole()->getKey());
     }
 

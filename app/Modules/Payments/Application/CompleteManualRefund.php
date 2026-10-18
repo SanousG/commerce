@@ -3,6 +3,10 @@
 namespace App\Modules\Payments\Application;
 
 use App\Models\User;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Orders\Domain\Models\Order;
 use App\Modules\Payments\Domain\Enums\PaymentTransactionStatus;
 use App\Modules\Payments\Domain\Enums\PaymentTransactionType;
@@ -15,10 +19,14 @@ use App\Modules\Tenancy\Domain\Models\Tenant;
 use Brick\Math\BigDecimal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class CompleteManualRefund
 {
-    public function __construct(private readonly OrderPaymentStatusUpdater $statusUpdater) {}
+    public function __construct(
+        private readonly OrderPaymentStatusUpdater $statusUpdater,
+        private readonly AuditRecorder $audit,
+    ) {}
 
     public function handle(
         Tenant $tenant,
@@ -53,6 +61,8 @@ class CompleteManualRefund
                     throw ValidationException::withMessages(['idempotency_key' => 'This idempotency key was used with different refund completion data.']);
                 }
 
+                $this->resolvePendingAfterCommit($lockedRefund);
+
                 return $lockedRefund->fresh();
             }
             $externalMatch = $transactions->firstWhere('external_id', $reference);
@@ -86,8 +96,42 @@ class CompleteManualRefund
                 'completed_at' => now(),
             ]);
             $this->statusUpdater->update($order);
+            $this->audit->record(
+                $tenant,
+                $actor === null ? AuditActorType::System : AuditActorType::User,
+                AuditAction::RefundCompleted,
+                AuditSubjectType::Refund,
+                (string) $lockedRefund->getKey(),
+                [
+                    'payment_id' => $payment->getKey(),
+                    'amount' => $lockedRefund->amount,
+                    'currency' => $lockedRefund->currency,
+                ],
+                $store,
+                $actor,
+                idempotencyKey: $key,
+                subjectLabel: $order->order_number,
+            );
+            $this->resolvePendingAfterCommit($lockedRefund);
 
             return $lockedRefund->fresh();
+        });
+    }
+
+    private function resolvePendingAfterCommit(Refund $refund): void
+    {
+        DB::afterCommit(function () use ($refund): void {
+            try {
+                DB::table('admin_notifications')
+                    ->where('tenant_id', $refund->tenant_id)
+                    ->where('store_id', $refund->store_id)
+                    ->where('deduplication_key', 'condition:refund:'.$refund->getKey())
+                    ->whereNull('resolved_at')
+                    ->whereNull('dismissed_at')
+                    ->update(['resolved_at' => now(), 'updated_at' => now()]);
+            } catch (Throwable $exception) {
+                report($exception);
+            }
         });
     }
 

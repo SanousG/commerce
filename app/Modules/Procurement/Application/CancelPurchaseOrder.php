@@ -2,6 +2,11 @@
 
 namespace App\Modules\Procurement\Application;
 
+use App\Models\User;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Procurement\Domain\Enums\PurchaseOrderStatus;
 use App\Modules\Procurement\Domain\Enums\PurchaseReceiptStatus;
 use App\Modules\Procurement\Domain\Models\PurchaseOrder;
@@ -11,9 +16,11 @@ use Illuminate\Validation\ValidationException;
 
 class CancelPurchaseOrder
 {
-    public function handle(Tenant $tenant, PurchaseOrder $order): PurchaseOrder
+    public function __construct(private readonly AuditRecorder $audit) {}
+
+    public function handle(Tenant $tenant, PurchaseOrder $order, ?User $actor = null): PurchaseOrder
     {
-        return DB::transaction(function () use ($tenant, $order): PurchaseOrder {
+        return DB::transaction(function () use ($tenant, $order, $actor): PurchaseOrder {
             $order = PurchaseOrder::query()->where('tenant_id', $tenant->getKey())->lockForUpdate()->findOrFail($order->getKey());
             if (! in_array($order->status, [PurchaseOrderStatus::Draft, PurchaseOrderStatus::Approved, PurchaseOrderStatus::Ordered], true)
                 || $order->receipts()->where('status', PurchaseReceiptStatus::Posted)->exists()) {
@@ -21,6 +28,12 @@ class CancelPurchaseOrder
             }
             $order->receipts()->where('status', PurchaseReceiptStatus::Draft)->update(['status' => PurchaseReceiptStatus::Cancelled]);
             $order->update(['status' => PurchaseOrderStatus::Cancelled, 'cancelled_at' => now()]);
+            $this->audit->record(
+                tenant: $tenant, actorType: $actor === null ? AuditActorType::System : AuditActorType::User,
+                action: AuditAction::PurchaseOrderCancelled, subjectType: AuditSubjectType::PurchaseOrder,
+                subjectId: $order->getKey(), metadata: ['grand_total' => $order->grand_total, 'currency' => $order->currency],
+                actor: $actor, subjectLabel: $order->number,
+            );
 
             return $order->refresh();
         });

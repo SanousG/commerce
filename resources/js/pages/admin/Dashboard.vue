@@ -51,6 +51,7 @@ interface FiscalSection {
     production_enabled: boolean;
     rejected_documents: Array<{ id: string; number: string; order: string; customer: string | null; status: string; date: string | null }>;
 }
+interface ProfitabilitySection { fulfilled_revenue_ex_tax: string; cogs: string; gross_profit: string | null; gross_margin_percent: string | null; fulfilled_quantity: number; covered_quantity: number; cost_coverage_percent: string; status: 'COMPLETE' | 'INCOMPLETE' }
 
 const props = defineProps<{
     dashboard: {
@@ -64,6 +65,7 @@ const props = defineProps<{
             procurement?: ProcurementSection;
             returns?: ReturnsSection;
             fiscal?: FiscalSection;
+            profitability?: ProfitabilitySection;
         };
         attention: AttentionItem[];
     };
@@ -152,6 +154,8 @@ const changeRange = (event: Event) => router.get('/admin/dashboard', { range: (e
                     </article>
                 </section>
             </template>
+
+            <section v-if="dashboard.sections.profitability" aria-labelledby="profitability-heading" class="border-t border-[#17211b]/15 pt-8"><div><p class="text-xs tracking-[0.14em] text-emerald-800 uppercase">Fulfillment-date recognition</p><h2 id="profitability-heading" class="mt-1 text-2xl font-semibold">Gross profitability</h2></div><div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><article class="border border-[#17211b]/15 bg-[#f8f5ed] p-5"><p class="text-xs text-[#637067] uppercase">COGS</p><p class="mt-3 text-2xl font-semibold">{{ money(dashboard.sections.profitability.cogs) }}</p></article><article class="border border-[#17211b]/15 bg-[#17211b] p-5 text-white"><p class="text-xs text-white/55 uppercase">Gross profit</p><p class="mt-3 text-2xl font-semibold">{{ dashboard.sections.profitability.gross_profit === null ? 'Incomplete' : money(dashboard.sections.profitability.gross_profit) }}</p></article><article class="border border-[#17211b]/15 bg-[#f8f5ed] p-5"><p class="text-xs text-[#637067] uppercase">Gross margin</p><p class="mt-3 text-2xl font-semibold">{{ dashboard.sections.profitability.gross_margin_percent === null ? 'Incomplete' : `${dashboard.sections.profitability.gross_margin_percent}%` }}</p></article><article class="border p-5" :class="dashboard.sections.profitability.status === 'COMPLETE' ? 'border-emerald-700 bg-emerald-50' : 'border-amber-700 bg-amber-50'"><p class="text-xs uppercase">Cost coverage</p><p class="mt-3 text-2xl font-semibold">{{ dashboard.sections.profitability.cost_coverage_percent }}%</p><p class="mt-1 text-xs">{{ dashboard.sections.profitability.covered_quantity }} / {{ dashboard.sections.profitability.fulfilled_quantity }} units</p></article></div><p v-if="dashboard.sections.profitability.status === 'INCOMPLETE'" class="mt-3 border-l-2 border-amber-600 pl-3 text-sm text-amber-900">Gross profit and margin are withheld because legacy or currency-mismatched fulfillment costs exist in this range.</p></section>
 
             <section v-if="dashboard.sections.payments || dashboard.sections.fulfillment" class="grid gap-6 lg:grid-cols-2">
                 <article v-if="dashboard.sections.payments" class="border border-[#17211b]/15 bg-[#f8f5ed] p-5 sm:p-6">

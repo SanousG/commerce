@@ -21,6 +21,7 @@ final readonly class BuildAdminDashboard
         private ProcurementDashboardMetrics $procurement,
         private ReturnsDashboardMetrics $returns,
         private FiscalDashboardMetrics $fiscal,
+        private ProfitabilityDashboardMetrics $profitability,
     ) {}
 
     public function build(User $user, Store $store, DashboardRange $rangeKey): AdminDashboardData
@@ -36,6 +37,10 @@ final readonly class BuildAdminDashboard
 
         if ($can(PermissionKey::OrdersView)) {
             $sections['sales'] = $this->sales->build($tenantId, $storeId, $currency, $range);
+        }
+
+        if ($can(PermissionKey::InventoryCostView)) {
+            $sections['profitability'] = $this->profitability->build($tenantId, $storeId, $currency, $range);
         }
 
         if ($can(PermissionKey::PaymentsView)) {

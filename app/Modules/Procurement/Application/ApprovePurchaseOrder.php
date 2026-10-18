@@ -3,6 +3,10 @@
 namespace App\Modules\Procurement\Application;
 
 use App\Models\User;
+use App\Modules\Audit\Application\AuditRecorder;
+use App\Modules\Audit\Domain\Enums\AuditAction;
+use App\Modules\Audit\Domain\Enums\AuditActorType;
+use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Procurement\Domain\Enums\PurchaseOrderStatus;
 use App\Modules\Procurement\Domain\Enums\SupplierProductStatus;
 use App\Modules\Procurement\Domain\Enums\SupplierStatus;
@@ -14,7 +18,10 @@ use Illuminate\Validation\ValidationException;
 
 class ApprovePurchaseOrder
 {
-    public function __construct(private readonly PurchaseOrderCalculator $calculator) {}
+    public function __construct(
+        private readonly PurchaseOrderCalculator $calculator,
+        private readonly AuditRecorder $audit,
+    ) {}
 
     public function handle(Tenant $tenant, PurchaseOrder $order, User $actor): PurchaseOrder
     {
@@ -41,6 +48,12 @@ class ApprovePurchaseOrder
             }
             $order = $this->calculator->handle($order);
             $order->update(['status' => PurchaseOrderStatus::Approved, 'approved_by_user_id' => $actor->getKey()]);
+            $this->audit->record(
+                tenant: $tenant, actorType: AuditActorType::User, action: AuditAction::PurchaseOrderApproved,
+                subjectType: AuditSubjectType::PurchaseOrder, subjectId: $order->getKey(),
+                metadata: ['quantity' => (int) $items->sum('quantity_ordered'), 'grand_total' => $order->grand_total, 'currency' => $order->currency],
+                actor: $actor, subjectLabel: $order->number,
+            );
 
             return $order->refresh()->load('items');
         });

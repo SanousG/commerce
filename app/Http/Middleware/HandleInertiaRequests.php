@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Modules\Access\Application\PermissionChecker;
+use App\Modules\Notifications\Application\UnreadNotificationCount;
 use App\Modules\Stores\Application\StoreContext;
 use App\Modules\Tenancy\Application\TenantContext;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ class HandleInertiaRequests extends Middleware
         private readonly TenantContext $tenantContext,
         private readonly StoreContext $storeContext,
         private readonly PermissionChecker $permissionChecker,
+        private readonly UnreadNotificationCount $unreadNotificationCount,
     ) {}
 
     /**
@@ -58,6 +60,9 @@ class HandleInertiaRequests extends Middleware
                 'currency',
                 'timezone',
             ]),
+            'unreadNotificationsCount' => fn (): int => $request->user() && $this->tenantContext->hasTenant()
+                ? $this->unreadNotificationCount->forUser($this->tenantContext->id(), $this->storeContext->id(), $request->user()->getKey())
+                : 0,
             'status' => fn () => $request->session()->get('status'),
         ];
     }

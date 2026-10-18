@@ -72,13 +72,19 @@ class FiscalDocumentController extends Controller
     }
 
     public function submitSunat(
+        Request $request,
         TenantContext $tenants,
         StoreContext $stores,
         SubmitFiscalDocumentToSunat $action,
         string $fiscalDocument,
     ): RedirectResponse {
         $document = $stores->get()->fiscalDocuments()->where('tenant_id', $tenants->id())->findOrFail($fiscalDocument);
-        $submission = $action->handle($tenants->id(), (string) $stores->id(), (string) $document->getKey());
+        $submission = $action->handle(
+            $tenants->id(),
+            (string) $stores->id(),
+            (string) $document->getKey(),
+            $request->user(),
+        );
 
         return back()->with('status', "SUNAT submission attempt {$submission->attempt_number}: {$submission->status->value}.");
     }

@@ -38,7 +38,7 @@ class AdminSettingsController extends Controller
         TenantContext $tenantContext,
         UpdateTenantSettings $updateTenantSettings,
     ): RedirectResponse {
-        $updateTenantSettings->handle($tenantContext->get(), $request->validated('name'));
+        $updateTenantSettings->handle($tenantContext->get(), $request->validated('name'), $request->user());
 
         return back()->with('status', 'Company settings updated.');
     }
