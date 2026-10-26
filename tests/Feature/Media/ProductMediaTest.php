@@ -62,7 +62,10 @@ class ProductMediaTest extends MediaFeatureTestCase
         $keys = [$asset->storage_key, ...$asset->derivatives->pluck('storage_key')->all()];
         $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
         $this->post(route('admin.products.media.store', $product), ['media_asset_id' => $asset->getKey()])->assertRedirect();
-        $this->deleteJson(route('admin.media.destroy', $asset))->assertConflict();
+        $this->deleteJson(route('admin.media.destroy', $asset))->assertConflict()->assertJsonPath(
+            'message',
+            'Esta imagen está en uso. Quita todas las referencias de productos, variantes, logotipos y favicons antes de eliminarla.',
+        );
         $this->assertDatabaseHas('media_assets', ['id' => $asset->getKey()]);
         foreach ($keys as $key) {
             Storage::disk('media-test')->assertExists($key);

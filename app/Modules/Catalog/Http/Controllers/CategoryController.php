@@ -53,7 +53,7 @@ class CategoryController extends Controller
     {
         $action->create($context->get(), $request->safe()->only(['name', 'parent_id', 'position']));
 
-        return to_route('admin.categories.index')->with('status', 'Category created.');
+        return to_route('admin.categories.index')->with('status', __('Category created.'));
     }
 
     public function edit(Request $request, TenantContext $context, CatalogAccess $access, string $category): Response
@@ -86,7 +86,7 @@ class CategoryController extends Controller
             'name', 'status', 'parent_id', 'position',
         ]));
 
-        return back()->with('status', 'Category updated.');
+        return back()->with('status', __('Category updated.'));
     }
 
     public function archive(
@@ -100,7 +100,7 @@ class CategoryController extends Controller
         $scopedCategory = $context->get()->categories()->findOrFail($category);
         $action->archive($context->get(), $scopedCategory);
 
-        return to_route('admin.categories.index')->with('status', 'Category archived.');
+        return to_route('admin.categories.index')->with('status', __('Category archived.'));
     }
 
     private function parents(TenantContext $context, ?string $except = null): array

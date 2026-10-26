@@ -17,7 +17,7 @@ class CreateProductOption
             $scopedProduct = $tenant->products()->lockForUpdate()->findOrFail($product->getKey());
 
             if ($scopedProduct->options()->where('name', $attributes['name'])->exists()) {
-                throw ValidationException::withMessages(['name' => 'This product already has an option with that name.']);
+                throw ValidationException::withMessages(['name' => __('This product already has an option with that name.')]);
             }
 
             $option = $scopedProduct->options()->create([

@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
+
 defineProps<{
     eyebrow: string;
     title: string;
     subtitle: string;
 }>();
+
+const { t } = useI18n();
 </script>
 
 <template>
@@ -20,15 +24,15 @@ defineProps<{
 
             <div class="relative max-w-xl">
                 <p class="mb-6 font-mono text-xs tracking-[0.22em] text-white/55 uppercase">
-                    One operation. Clear control.
+                    {{ t('auth.layout.tagline') }}
                 </p>
                 <h2 class="text-5xl leading-[1.03] font-semibold tracking-[-0.05em] xl:text-7xl">
-                    The quiet side of running commerce.
+                    {{ t('auth.layout.title') }}
                 </h2>
             </div>
 
             <p class="max-w-sm text-sm leading-6 text-white/55">
-                A focused workspace for the people building and operating your business.
+                {{ t('auth.layout.description') }}
             </p>
         </section>
 

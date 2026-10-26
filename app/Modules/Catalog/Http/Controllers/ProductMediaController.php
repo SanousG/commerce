@@ -19,7 +19,7 @@ class ProductMediaController extends Controller
         $asset = $tenant->mediaAssets()->where('status', MediaStatus::Ready)->findOrFail($request->validated('media_asset_id'));
         $media->attachProduct($tenant, $scopedProduct, $asset, $request->boolean('is_primary'), $request->validated('alt_text'));
 
-        return back()->with('status', 'Image attached to product.');
+        return back()->with('status', __('Image attached to product.'));
     }
 
     public function destroy(TenantContext $tenants, ManageProductMedia $media, string $product, string $mediaAsset): RedirectResponse
@@ -30,7 +30,7 @@ class ProductMediaController extends Controller
         abort_unless($scopedProduct->media()->where('media_asset_id', $asset->getKey())->exists(), 404);
         $media->detachProduct($scopedProduct, $asset);
 
-        return back()->with('status', 'Image removed from product.');
+        return back()->with('status', __('Image removed from product.'));
     }
 
     public function reorder(ReorderProductMediaRequest $request, TenantContext $tenants, ManageProductMedia $media, string $product): RedirectResponse
@@ -38,6 +38,6 @@ class ProductMediaController extends Controller
         $scopedProduct = $tenants->get()->products()->findOrFail($product);
         $media->reorderProduct($scopedProduct, $request->validated('media_asset_ids'), $request->validated('primary_media_asset_id'));
 
-        return back()->with('status', 'Product gallery updated.');
+        return back()->with('status', __('Product gallery updated.'));
     }
 }

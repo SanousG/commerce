@@ -19,6 +19,6 @@ class ProductOptionController extends Controller
         $scopedProduct = $context->get()->products()->findOrFail($product);
         $action->handle($context->get(), $scopedProduct, $request->safe()->only(['name', 'position', 'values']));
 
-        return back()->with('status', 'Product option created.');
+        return back()->with('status', __('Product option created.'));
     }
 }

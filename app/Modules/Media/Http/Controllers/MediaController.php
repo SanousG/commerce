@@ -58,7 +58,7 @@ class MediaController extends Controller
 
         return $request->expectsJson()
             ? response()->json($this->serialize($asset), 201)
-            : back()->with('status', 'Image uploaded.');
+            : back()->with('status', __('Image uploaded.'));
     }
 
     public function show(TenantContext $tenants, string $mediaAsset): JsonResponse
@@ -79,14 +79,14 @@ class MediaController extends Controller
 
         return $request->expectsJson()
             ? response()->json($this->serialize($asset->refresh()))
-            : back()->with('status', 'Image details updated.');
+            : back()->with('status', __('Image details updated.'));
     }
 
     public function destroy(TenantContext $tenants, DeleteMediaAsset $delete, string $mediaAsset): RedirectResponse|JsonResponse
     {
         $delete->handle($this->asset($tenants, $mediaAsset));
 
-        return request()->expectsJson() ? response()->json(status: 204) : back()->with('status', 'Image deleted.');
+        return request()->expectsJson() ? response()->json(status: 204) : back()->with('status', __('Image deleted.'));
     }
 
     public function thumbnail(TenantContext $tenants, string $mediaAsset): StreamedResponse

@@ -26,6 +26,7 @@ class StoreSettingsTest extends StoreFeatureTestCase
 
     public function test_existing_store_gets_defaults_and_owner_can_read_and_update_settings(): void
     {
+        config(['media.max_image_mb' => 17]);
         $user = User::factory()->create();
         $tenant = $this->createTenantFor($user);
         $store = $this->createStore($tenant);
@@ -36,6 +37,7 @@ class StoreSettingsTest extends StoreFeatureTestCase
                 ->component('admin/stores/Settings')
                 ->where('store.id', $store->getKey())
                 ->where('settings.country_code', 'PE')
+                ->where('mediaLimits.max_image_mb', 17)
                 ->where('settings.primary_color', '#17211B'));
 
         $this->patch(route('admin.stores.settings.update', $store), $this->payload($store, [

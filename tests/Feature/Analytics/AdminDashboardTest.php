@@ -141,7 +141,44 @@ class AdminDashboardTest extends OrdersFeatureTestCase
         $store = $this->createStore($tenant);
         $this->useDashboardContext($user, $tenant->getKey(), $store->getKey());
 
-        $this->get(route('admin.dashboard', ['range' => 'drop table orders']))->assertSessionHasErrors('range');
+        $response = $this->get(route('admin.dashboard', ['range' => 'drop table orders']))
+            ->assertSessionHasErrors(['range' => 'El valor seleccionado para rango de fechas no es válido.']);
+
+        $this->assertStringNotContainsString('validation.', $response->getContent());
+    }
+
+    public function test_custom_range_validation_is_localized_and_accepts_valid_boundaries(): void
+    {
+        $spanish = User::factory()->create();
+        $tenant = $this->createTenantFor($spanish);
+        $store = $this->createStore($tenant);
+        $this->useDashboardContext($spanish, $tenant->getKey(), $store->getKey());
+
+        $this->get(route('admin.dashboard', ['range' => 'custom', 'from' => 'invalid', 'to' => '2026-01-01']))
+            ->assertSessionHasErrors(['from' => 'El campo fecha inicial debe tener el formato Y-m-d.']);
+        $this->get(route('admin.dashboard', ['range' => 'custom', 'from' => '2026-01-02', 'to' => '2026-01-01']))
+            ->assertSessionHasErrors(['to' => 'El campo fecha final debe ser una fecha posterior o igual a fecha inicial.']);
+        $this->get(route('admin.dashboard', ['range' => 'custom', 'from' => '2025-01-01', 'to' => '2026-12-31']))
+            ->assertSessionHasErrors(['to' => 'El rango personalizado no debe superar 366 días.']);
+
+        $english = User::factory()->create(['admin_locale' => 'en']);
+        $englishTenant = $this->createTenantFor($english);
+        $englishStore = $this->createStore($englishTenant);
+        $this->useDashboardContext($english, $englishTenant->getKey(), $englishStore->getKey());
+
+        $response = $this->get(route('admin.dashboard', ['range' => 'custom']))
+            ->assertSessionHasErrors([
+                'from' => 'The start date field is required when date range is custom.',
+                'to' => 'The end date field is required when date range is custom.',
+            ]);
+        $this->assertStringNotContainsString('validation.', $response->getContent());
+
+        $this->get(route('admin.dashboard', [
+            'range' => 'custom', 'from' => '2026-01-01', 'to' => '2026-01-02',
+        ]))->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('dashboard.range.key', 'custom')
+            ->where('dashboard.range.local_start', '2026-01-01T00:00:00-05:00')
+            ->where('dashboard.range.local_end_inclusive', '2026-01-02'));
     }
 
     public function test_top_products_cap_at_ten_and_keep_archived_snapshots(): void

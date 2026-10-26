@@ -13,7 +13,8 @@
 2. Repetir 20–30 veces por pantalla para mediana/p95; documentar hardware, network throttling y dataset.
 3. Capturar `Server-Timing` en entorno local/staging autorizado para middleware/controller/DB/serialization.
 4. Obtener `pg_stat_statements` y EXPLAIN (sin ANALYZE en compartido salvo autorización) para searches y aggregates con cardinalidad real.
-5. Medir Supabase direct/pooler DNS/TLS/connection reuse sin carga agresiva.
+5. Medir conexión/reutilización contra PostgreSQL local y, en un futuro entorno
+   autorizado, repetir las métricas de red correspondientes.
 
 ## P1 propuesto — seguro tras medición
 
@@ -26,7 +27,7 @@
 ## P2 — requiere aprobación/refactor
 
 - URL versionada o ETag para derivatives privados y estrategia de cache revalidable; conservar auth y aislamiento.
-- Búsqueda PostgreSQL con trigram/FTS solo si plans/cardinalidad demuestran necesidad; migración de índice separada y no ejecutada en Supabase durante implementación.
+- Búsqueda PostgreSQL con trigram/FTS solo si plans/cardinalidad demuestran necesidad; migración de índice separada y no ejecutada en desarrollo sin autorización.
 - Prefetch Inertia selectivo para Products/Categories/Media list/create bajo interacción (`hover`/visible), nunca masivo ni para financial/fiscal.
 - Deferred props para Dashboard y workbenches; definir qué props pueden llegar después sin parpadeos ni permisos obsoletos.
 - Revisar pooler/connection mode con operación antes de cambiar configuración.

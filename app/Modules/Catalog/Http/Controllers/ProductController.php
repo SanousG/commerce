@@ -73,7 +73,7 @@ class ProductController extends Controller
             'name', 'description', 'sku', 'barcode', 'categories',
         ]), $request->user());
 
-        return to_route('admin.products.edit', $product)->with('status', 'Product created.');
+        return to_route('admin.products.edit', $product)->with('status', __('Product created.'));
     }
 
     public function edit(
@@ -169,6 +169,7 @@ class ProductController extends Controller
                 'view' => $canViewMedia,
                 'upload' => $permissions->userCan($request->user(), PermissionKey::MediaUpload),
             ],
+            'mediaLimits' => ['max_image_mb' => (int) config('media.max_image_mb')],
         ]);
     }
 
@@ -183,7 +184,7 @@ class ProductController extends Controller
             'name', 'description', 'status', 'tax_category_id', 'categories',
         ]), $request->user());
 
-        return back()->with('status', 'Product updated.');
+        return back()->with('status', __('Product updated.'));
     }
 
     public function archive(
@@ -197,7 +198,7 @@ class ProductController extends Controller
         $scopedProduct = $context->get()->products()->findOrFail($product);
         $action->handle($context->get(), $scopedProduct, $request->user());
 
-        return to_route('admin.products.index')->with('status', 'Product archived.');
+        return to_route('admin.products.index')->with('status', __('Product archived.'));
     }
 
     private function categoryChoices(TenantContext $context): array

@@ -55,7 +55,7 @@ class SaveVariant
             $this->assertDefaultIsActive($makeDefault, $attributes['status']);
 
             if ($scopedVariant->is_default && ! $makeDefault) {
-                throw ValidationException::withMessages(['is_default' => 'Choose another default variant before unsetting this one.']);
+                throw ValidationException::withMessages(['is_default' => __('Choose another default variant before unsetting this one.')]);
             }
 
             if ($makeDefault && ! $scopedVariant->is_default) {
@@ -93,7 +93,7 @@ class SaveVariant
 
         if ($values->count() !== count(array_unique($ids)) || $values->pluck('product_option_id')->unique()->count() !== $values->count()) {
             throw ValidationException::withMessages([
-                'option_value_ids' => 'Choose at most one value from each option on this product.',
+                'option_value_ids' => __('Choose at most one value from each option on this product.'),
             ]);
         }
 
@@ -114,7 +114,7 @@ class SaveVariant
     private function assertDefaultIsActive(bool $isDefault, string $status): void
     {
         if ($isDefault && $status !== ProductVariantStatus::Active->value) {
-            throw ValidationException::withMessages(['status' => 'The default variant must be active.']);
+            throw ValidationException::withMessages(['status' => __('The default variant must be active.')]);
         }
     }
 

@@ -223,11 +223,16 @@ metric.
 ## Frontend
 
 The dashboard is a single Inertia page (`admin/Dashboard.vue`) that reuses the
-existing AdminLayout and Tailwind utility style. It renders the period selector,
+shared responsive AdminLayout and the Executive Precision B2B presentation
+tokens. It renders the period selector,
 an optional custom date range, KPI cards with period deltas, a dependency-free
-inline SVG trend chart (`DashboardTrendChart.vue`), the recent orders list, top
-products, stock attention, procurement, returns/refunds and fiscal sections.
-No chart library or new design system was introduced.
+inline SVG trend chart (`DashboardTrendChart.vue`), responsive recent-order,
+inventory and procurement views, top products, stock attention,
+returns/refunds and fiscal sections. Desktop data tables become stacked cards
+on narrow screens; the mobile shell uses the approved drawer and has no bottom
+navigation. No chart or component library was introduced. The presentation
+pilot does not alter Dashboard props, queries, routes, permission checks or
+scope boundaries.
 
 ## Performance and persistence
 

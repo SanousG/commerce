@@ -20,24 +20,28 @@ class ImageProcessor
         $this->assertRuntime();
         $path = $file->getRealPath();
         if ($path === false || ! is_file($path)) {
-            $this->invalid('The uploaded image could not be read.');
+            $this->invalid(__('The uploaded image could not be read.'));
         }
 
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($path);
         if (! is_string($mime) || ! isset(self::FORMATS[$mime])) {
-            $this->invalid('Only genuine JPEG, PNG, or WebP images are accepted.');
+            $this->invalid(__('Only genuine JPEG, PNG, or WebP images are accepted.'));
         }
 
         $info = @getimagesize($path);
         if ($info === false || ($info['mime'] ?? null) !== $mime) {
-            $this->invalid('The uploaded file is not a valid image.');
+            $this->invalid(__('The uploaded file is not a valid image.'));
         }
         [$width, $height] = $info;
         $maxWidth = (int) config('media.max_width');
         $maxHeight = (int) config('media.max_height');
         $maxPixels = (int) config('media.max_pixels');
         if ($width < 1 || $height < 1 || $width > $maxWidth || $height > $maxHeight || $width * $height > $maxPixels) {
-            $this->invalid("Image dimensions must not exceed {$maxWidth}×{$maxHeight} or {$maxPixels} pixels.");
+            $this->invalid(__('Image dimensions must not exceed :width×:height or :pixels pixels.', [
+                'width' => $maxWidth,
+                'height' => $maxHeight,
+                'pixels' => $maxPixels,
+            ]));
         }
 
         $image = $this->decode($path, $mime);
@@ -83,7 +87,7 @@ class ImageProcessor
             'image/webp' => @imagecreatefromwebp($path),
         };
         if (! $image instanceof GdImage) {
-            $this->invalid('The image is corrupt or cannot be decoded safely.');
+            $this->invalid(__('The image is corrupt or cannot be decoded safely.'));
         }
 
         return $image;

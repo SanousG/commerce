@@ -43,7 +43,7 @@ final class DashboardRequest extends FormRequest
             if ($from->diffInDays($to) + 1 > DashboardDateRange::MAX_CUSTOM_DAYS) {
                 $validator->errors()->add(
                     'to',
-                    'The custom range must not exceed '.DashboardDateRange::MAX_CUSTOM_DAYS.' days.',
+                    __('The custom range must not exceed :days days.', ['days' => DashboardDateRange::MAX_CUSTOM_DAYS]),
                 );
             }
         });

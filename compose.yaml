@@ -19,18 +19,40 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
+            - 'sail-vendor:/var/www/html/vendor'
+            - 'sail-node-modules:/var/www/html/node_modules'
             - './docker/php/99-local.ini:/etc/php/8.5/cli/conf.d/99-local.ini:ro'
         tmpfs:
             - '/var/www/html/storage/framework/views:uid=1337,gid=1000,mode=0775'
         networks:
             - sail
         depends_on:
+            pgsql:
+                condition: service_healthy
             redis:
                 condition: service_started
             mailpit:
                 condition: service_started
             pgsql.testing:
                 condition: service_healthy
+    pgsql:
+        image: 'postgres:17-alpine'
+        ports:
+            - '${FORWARD_DB_PORT:-5433}:5432'
+        environment:
+            POSTGRES_DB: commerce
+            POSTGRES_USER: commerce
+            POSTGRES_PASSWORD: local_development_password
+        volumes:
+            - 'sail-pgsql-development:/var/lib/postgresql/data'
+        networks:
+            - sail
+        healthcheck:
+            test:
+                - CMD-SHELL
+                - 'pg_isready -U commerce -d commerce'
+            retries: 5
+            timeout: 5s
     pgsql.testing:
         image: 'postgres:17-alpine'
         environment:
@@ -70,5 +92,11 @@ networks:
     sail:
         driver: bridge
 volumes:
+    sail-node-modules:
+        driver: local
+    sail-pgsql-development:
+        driver: local
     sail-redis:
+        driver: local
+    sail-vendor:
         driver: local

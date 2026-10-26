@@ -45,10 +45,10 @@ class ManageProductMedia
             Product::query()->whereKey($product->getKey())->lockForUpdate()->firstOrFail();
             $current = $product->media()->pluck('media_asset_id')->all();
             if (array_diff($current, $orderedIds) !== [] || array_diff($orderedIds, $current) !== [] || count($orderedIds) !== count($current)) {
-                throw ValidationException::withMessages(['media_asset_ids' => 'The order must contain every attached image exactly once.']);
+                throw ValidationException::withMessages(['media_asset_ids' => __('The order must contain every attached image exactly once.')]);
             }
             if ($primaryId !== null && ! in_array($primaryId, $current, true)) {
-                throw ValidationException::withMessages(['primary_media_asset_id' => 'The primary image must be attached to this product.']);
+                throw ValidationException::withMessages(['primary_media_asset_id' => __('The primary image must be attached to this product.')]);
             }
             $product->media()->update(['is_primary' => false]);
             foreach ($orderedIds as $position => $id) {
@@ -84,7 +84,7 @@ class ManageProductMedia
             ProductVariant::query()->whereKey($variant->getKey())->lockForUpdate()->firstOrFail();
             $current = $variant->media()->pluck('media_asset_id')->all();
             if (array_diff($current, $orderedIds) !== [] || array_diff($orderedIds, $current) !== [] || count($orderedIds) !== count($current)) {
-                throw ValidationException::withMessages(['media_asset_ids' => 'The order must contain every attached variant image exactly once.']);
+                throw ValidationException::withMessages(['media_asset_ids' => __('The order must contain every attached variant image exactly once.')]);
             }
             foreach ($orderedIds as $position => $id) {
                 $variant->media()->where('media_asset_id', $id)->update(['position' => $position]);

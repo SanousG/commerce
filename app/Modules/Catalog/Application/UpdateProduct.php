@@ -24,7 +24,7 @@ class UpdateProduct
             $categoryIds = $attributes['categories'] ?? [];
 
             if ($tenant->categories()->whereKey($categoryIds)->count() !== count(array_unique($categoryIds))) {
-                throw ValidationException::withMessages(['categories' => 'Every category must belong to the current company.']);
+                throw ValidationException::withMessages(['categories' => __('Every category must belong to the current company.')]);
             }
 
             $currentCategoryIds = $lockedProduct->categories()->pluck('categories.id')->sort()->values()->all();

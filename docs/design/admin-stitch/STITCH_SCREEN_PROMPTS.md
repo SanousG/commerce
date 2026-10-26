@@ -1,10 +1,10 @@
 # Prompts de pantallas y plantillas para Stitch
 
-Aplicar siempre `STITCH_MASTER_PROMPT.md`. Los prompts se agrupan por plantilla visual; `STITCH_DESIGN_COVERAGE.md` asigna cada una de las 69 pantallas. No marcar una pantalla como generada por usar estos textos.
+Aplicar siempre `STITCH_MASTER_PROMPT.md` y `ADMIN_DESIGN_TOKENS.md`. Reutilizar explícitamente `Executive Precision B2B` (`assets/a08e56da2173415785f1ffb340ddd446`): primary `#0F172A`, secondary `#2563EB`, tertiary `#0284C7`, neutral `#64748B`, Inter + JetBrains Mono. Verificar los valores aplicados en HTML/captura; el nombre del sistema en el prompt no basta. No usar una paleta principal distinta por módulo ni verdes como marca; Success/Active conserva su verde semántico oficial. Los prompts se agrupan por plantilla visual; `STITCH_DESIGN_COVERAGE.md` asigna cada una de las 69 pantallas. No marcar una pantalla como generada por usar estos textos.
 
 ## REF-01 — Design System
 
-Diseña una página de catálogo de componentes a 1440 px y variantes 768/390: tokens, tipografía, iconos, botones, inputs/select/checkbox/radio/date, badges de estados comerciales, tabla densa, responsive cards, paginación, tabs, drawers, confirmation dialog, toast/save state, skeleton, empty/error/403/409/session-expired, KPI y chart container. Incluye estados hover/focus/disabled/processing/error. Usa datos sintéticos.
+Diseña una página de catálogo de componentes a 1440 px y variantes 768/390 usando los tokens oficiales de `ADMIN_DESIGN_TOKENS.md`: superficies y bordes del asset, primary slate, interacción azul y estados semánticos separados. Incluye tipografía, iconos, botones, inputs/select/checkbox/radio/date, badges de estados comerciales, tabla densa, responsive cards, paginación, tabs, drawers, confirmation dialog, toast/save state, skeleton, empty/error/403/409/session-expired, KPI y chart container. Incluye estados hover/focus/disabled/processing/error. Usa datos sintéticos.
 
 ## REF-02 — Admin shell
 

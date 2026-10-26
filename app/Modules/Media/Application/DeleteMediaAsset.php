@@ -18,7 +18,7 @@ class DeleteMediaAsset
             $locked = MediaAsset::query()->lockForUpdate()->findOrFail($asset->getKey());
             if ($locked->productMedia()->exists() || $locked->productVariantMedia()->exists()
                 || $locked->storeLogoSettings()->exists() || $locked->storeFaviconSettings()->exists()) {
-                throw new ConflictHttpException('This image is in use. Remove every product, variant, logo, and favicon reference before deleting it.');
+                throw new ConflictHttpException(__('This image is in use. Remove every product, variant, logo, and favicon reference before deleting it.'));
             }
             $locked->load('derivatives')->update(['status' => MediaStatus::Deleting]);
 

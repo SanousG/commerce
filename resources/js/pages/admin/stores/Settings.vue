@@ -24,6 +24,7 @@ const props = defineProps<{
     store: StoreData;
     settings: StoreSettingsData;
     options: { currencies: string[]; countries: Array<{ value: string; label: string }> };
+    mediaLimits: { max_image_mb: number };
 }>();
 const page = usePage<PageProps>();
 const canUpdate = computed(() => page.props.currentTenantMembership?.permissions.includes('stores.update') ?? false);
@@ -109,7 +110,7 @@ const save = () => form.patch(`/admin/stores/${props.store.id}/settings`, {
                         <button type="button" class="w-fit border px-4 py-2 text-sm font-semibold" @click="picker = picker === 'favicon' ? null : 'favicon'">Choose from Media</button>
                         <FieldError :message="form.errors.favicon_media_asset_id" />
                     </div>
-                    <div v-if="picker" class="border bg-white p-4 sm:col-span-2"><MediaPicker :selected-ids="[form.logo_media_asset_id, form.favicon_media_asset_id].filter((id): id is string => Boolean(id))" :allow-upload="canUpload" @select="chooseMedia" /></div>
+                    <div v-if="picker" class="border bg-white p-4 sm:col-span-2"><MediaPicker :selected-ids="[form.logo_media_asset_id, form.favicon_media_asset_id].filter((id): id is string => Boolean(id))" :allow-upload="canUpload" :max-image-mb="mediaLimits.max_image_mb" @select="chooseMedia" /></div>
                     <div><label for="primary-color" class="mb-2 block text-sm font-semibold">Primary color</label><div class="flex gap-2"><input v-model="form.primary_color" type="color" class="h-12 w-16 border bg-white p-1" /><input id="primary-color" v-model="form.primary_color" maxlength="7" class="min-w-0 flex-1 border bg-white px-4 py-3 font-mono uppercase" /></div><FieldError :message="form.errors.primary_color" /></div>
                     <div><label for="secondary-color" class="mb-2 block text-sm font-semibold">Secondary color (optional)</label><input id="secondary-color" v-model="form.secondary_color" maxlength="7" placeholder="#D8F36A" class="w-full border bg-white px-4 py-3 font-mono uppercase" /><FieldError :message="form.errors.secondary_color" /></div>
                     <p class="text-sm text-[#637067] sm:col-span-2">Media masters stay private. These references prepare future storefront delivery through purpose-built derivatives; they do not create public file URLs.</p>

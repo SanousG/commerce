@@ -72,7 +72,7 @@ class SaveCategory
 
         while ($parentId !== null) {
             if ($parentId === $category->getKey() || isset($seen[$parentId])) {
-                throw ValidationException::withMessages(['parent_id' => 'A category cannot be nested below itself.']);
+                throw ValidationException::withMessages(['parent_id' => __('A category cannot be nested below itself.')]);
             }
 
             $seen[$parentId] = true;

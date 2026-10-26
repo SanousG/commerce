@@ -18,8 +18,8 @@
 
 ## Data and external-service safety
 
-- Development and production PostgreSQL are remote Supabase databases. Laravel migrations own application schema in `public`; do not modify Supabase `auth`, `storage`, or `realtime` schemas.
-- Never run `migrate:fresh`, `db:wipe`, broad truncation, or destructive data commands against Supabase. Do not alter remote credentials or delete remote data without explicit authorization.
+- Development uses the local Docker PostgreSQL service `pgsql`; testing uses the separate `pgsql.testing/commerce_testing` service. Supabase is not currently used. Always inspect `compose.yaml` and Laravel's effective configuration rather than assuming hostnames, ports, or database names.
+- Never run `migrate:fresh`, `db:wipe`, broad truncation, or destructive data commands against development. Do not alter credentials or delete data without explicit authorization.
 - `composer setup` is not a harmless bootstrap: it executes `php artisan migrate --force` against the current environment. Inspect the effective database target before using it.
 - Redis and Mailpit are local Compose services. Do not add Redis-backed queues/cache or Horizon merely because the services exist.
 - Automated tests must not contact SUNAT. Production SUNAT transport is intentionally unavailable; never enable production or resend an `UNKNOWN`/`SUBMITTED` attempt without explicit, manual reconciliation.
@@ -28,9 +28,9 @@
 ## Commands
 
 - Install locked dependencies: `composer install` and `npm ci`.
-- Start the complete local stack: `docker compose up -d`. The services are `laravel.test`, `pgsql.testing`, `redis`, and `mailpit`.
+- Start the complete local stack: `docker compose up -d`. The services are `laravel.test`, `pgsql`, `pgsql.testing`, `redis`, and `mailpit`.
 - Aggregate development command: `composer dev`; Laravel 13 starts the HTTP server, queue listener, Pail when available, and Vite. Ensure its configured database/services are intentional first.
-- Frontend checks: `npm run typecheck` and `npm run build`. There is no configured JS lint script.
+- Frontend checks: `npm run test:i18n`, `npm run typecheck` and `npm run build`. There is no configured JS lint script.
 - PHP formatting: `vendor/bin/pint path/to/changed.php`. Avoid repository-wide or `--dirty` formatting when unrelated worktree changes exist.
 
 ## Tests

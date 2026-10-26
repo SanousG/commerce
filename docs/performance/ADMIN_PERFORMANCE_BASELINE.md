@@ -2,6 +2,11 @@
 
 Fecha: 2026-10-18.
 
+> Nota de infraestructura (2026-10-25): desarrollo ahora usa PostgreSQL local
+> Docker (`pgsql/commerce`) y testing usa `pgsql.testing/commerce_testing`.
+> Supabase ya no se utiliza. Las referencias posteriores a Supabase describen
+> únicamente el entorno histórico al momento de esta medición.
+
 ## Entorno y metodología
 
 - Laravel ejecutado dentro de `laravel.test`; PostgreSQL aislado `pgsql.testing/commerce_testing` confirmado por el guard test.
@@ -9,7 +14,10 @@ Fecha: 2026-10-18.
 - 7 requests secuenciales por pantalla: primera ejecución reportada por separado; mediana de las 6 navegaciones posteriores.
 - Instrumentación: tiempo de request de Feature HTTP, query log de Laravel, suma de duración DB y bytes de response Inertia.
 - Muestra insuficiente para un p95 fiable; **no se reporta p95**.
-- El entorno de desarrollo configurado usa PostgreSQL mediante **Supabase pooler**, puerto 5432, `DB_URL` no configurado y sslmode efectivo por defecto `prefer`. No se hizo benchmark remoto.
+- Al momento histórico de esta medición, el entorno de desarrollo configurado
+  usaba PostgreSQL mediante **Supabase pooler**, puerto 5432, `DB_URL` no
+  configurado y sslmode efectivo por defecto `prefer`. No se hizo benchmark
+  remoto. Esa configuración ya no está vigente.
 
 ## Antes de la corrección
 

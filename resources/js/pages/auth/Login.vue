@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import FieldError from '../../components/FieldError.vue';
 import StatusNotice from '../../components/StatusNotice.vue';
 import AuthLayout from '../../layouts/AuthLayout.vue';
@@ -8,6 +9,7 @@ import type { PageProps } from '../../types';
 
 const page = usePage<PageProps>();
 const status = computed(() => page.props.status);
+const { t } = useI18n();
 const form = useForm({
     email: '',
     password: '',
@@ -22,18 +24,18 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Log in" />
+    <Head :title="t('auth.login.head')" />
 
     <AuthLayout
-        eyebrow="Secure access"
-        title="Welcome back."
-        subtitle="Sign in to continue to your administrative workspace."
+        :eyebrow="t('auth.login.eyebrow')"
+        :title="t('auth.login.title')"
+        :subtitle="t('auth.login.subtitle')"
     >
         <StatusNotice :message="status" />
 
         <form class="space-y-5" @submit.prevent="submit">
             <div>
-                <label for="email" class="mb-2 block text-sm font-semibold">Email address</label>
+                <label for="email" class="mb-2 block text-sm font-semibold">{{ t('auth.common.email') }}</label>
                 <input
                     id="email"
                     v-model="form.email"
@@ -50,9 +52,9 @@ const submit = () => {
 
             <div>
                 <div class="mb-2 flex items-center justify-between gap-4">
-                    <label for="password" class="text-sm font-semibold">Password</label>
+                    <label for="password" class="text-sm font-semibold">{{ t('auth.common.password') }}</label>
                     <Link href="/forgot-password" class="text-sm font-medium text-emerald-800 underline-offset-4 hover:underline">
-                        Forgot password?
+                        {{ t('auth.login.forgot') }}
                     </Link>
                 </div>
                 <input
@@ -70,7 +72,7 @@ const submit = () => {
 
             <label class="flex w-fit items-center gap-3 text-sm text-[#39473f]">
                 <input v-model="form.remember" type="checkbox" class="size-4 accent-emerald-800" />
-                Remember me on this device
+                {{ t('auth.login.remember') }}
             </label>
 
             <button
@@ -78,14 +80,14 @@ const submit = () => {
                 :disabled="form.processing"
                 class="w-full bg-[#17211b] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-60"
             >
-                {{ form.processing ? 'Signing in...' : 'Sign in' }}
+                {{ form.processing ? t('auth.login.submitting') : t('auth.login.submit') }}
             </button>
         </form>
 
         <p class="mt-7 text-sm text-[#516057]">
-            New here?
+            {{ t('auth.login.newHere') }}
             <Link href="/register" class="font-semibold text-emerald-800 underline-offset-4 hover:underline">
-                Create an account
+                {{ t('auth.login.register') }}
             </Link>
         </p>
     </AuthLayout>

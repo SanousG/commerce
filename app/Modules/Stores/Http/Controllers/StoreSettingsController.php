@@ -45,6 +45,7 @@ class StoreSettingsController extends Controller
                 'currencies' => ['PEN', 'USD', 'EUR'],
                 'countries' => [['value' => 'PE', 'label' => 'Peru']],
             ],
+            'mediaLimits' => ['max_image_mb' => (int) config('media.max_image_mb')],
         ]);
     }
 

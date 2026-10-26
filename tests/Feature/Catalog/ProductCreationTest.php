@@ -51,6 +51,45 @@ class ProductCreationTest extends CatalogFeatureTestCase
         $this->assertDatabaseMissing('products', ['tenant_id' => $memberTenant->getKey()]);
     }
 
+    public function test_product_can_be_created_with_multiple_tenant_categories(): void
+    {
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $parent = $this->createCategory($tenant, ['name' => 'Clothing']);
+        $child = $this->createCategory($tenant, ['name' => 'Shirts', 'parent_id' => $parent->getKey()]);
+
+        $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()])
+            ->post(route('admin.products.store'), [
+                ...$this->productPayload(),
+                'categories' => [$parent->getKey(), $child->getKey()],
+            ])->assertRedirect();
+
+        $product = Product::query()->sole();
+        $this->assertEqualsCanonicalizing(
+            [$parent->getKey(), $child->getKey()],
+            $product->categories()->pluck('categories.id')->all(),
+        );
+        $this->assertDatabaseHas('category_product', [
+            'tenant_id' => $tenant->getKey(),
+            'product_id' => $product->getKey(),
+            'category_id' => $child->getKey(),
+        ]);
+    }
+
+    public function test_product_can_be_created_without_categories(): void
+    {
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+
+        $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()])
+            ->post(route('admin.products.store'), [
+                ...$this->productPayload('Uncategorized product', 'NO-CATEGORY'),
+                'categories' => [],
+            ])->assertRedirect();
+
+        $this->assertFalse(Product::query()->sole()->categories()->exists());
+    }
+
     public function test_product_and_default_variant_creation_is_atomic(): void
     {
         $tenant = $this->createTenantFor(User::factory()->create());

@@ -22,7 +22,7 @@ class ProductVariantController extends Controller
             'sku', 'barcode', 'name', 'status', 'is_default', 'option_value_ids',
         ]));
 
-        return back()->with('status', 'Variant created.');
+        return back()->with('status', __('Variant created.'));
     }
 
     public function update(
@@ -38,6 +38,6 @@ class ProductVariantController extends Controller
             'sku', 'barcode', 'name', 'status', 'is_default', 'option_value_ids',
         ]));
 
-        return back()->with('status', 'Variant updated.');
+        return back()->with('status', __('Variant updated.'));
     }
 }

@@ -33,6 +33,7 @@ class HandleInertiaRequests extends Middleware
                     'name',
                     'email',
                     'email_verified_at',
+                    'admin_locale',
                 ]),
             ],
             'currentTenant' => fn () => $this->tenantContext->get()?->only([
@@ -69,6 +70,11 @@ class HandleInertiaRequests extends Middleware
                 )
                 : 0,
             'status' => fn () => $request->session()->get('status'),
+            'localization' => [
+                'locale' => fn () => $request->user()?->admin_locale ?? config('localization.default'),
+                'fallback' => config('localization.fallback'),
+                'supported' => config('localization.supported'),
+            ],
         ];
     }
 }

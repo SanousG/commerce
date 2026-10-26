@@ -3,6 +3,7 @@ export interface User {
     name: string;
     email: string;
     email_verified_at: string | null;
+    admin_locale: 'es-PE' | 'en';
 }
 
 export interface Tenant {
@@ -34,4 +35,9 @@ export interface PageProps extends Record<string, unknown> {
     currentStore: Store | null;
     unreadNotificationsCount: number;
     status?: string;
+    localization: {
+        locale: 'es-PE' | 'en';
+        fallback: 'es-PE';
+        supported: Array<'es-PE' | 'en'>;
+    };
 }

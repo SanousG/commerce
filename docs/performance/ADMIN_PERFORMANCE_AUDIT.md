@@ -34,8 +34,10 @@ El cuello de botella dominante medido no era Vue ni el bundle: era una repetici�
 
 ## PostgreSQL / Supabase
 
-- Development apunta a Supabase pooler; tests y probes usaron PostgreSQL local aislado.
-- No se ejecutó EXPLAIN ni carga sobre Supabase compartido.
+- Infraestructura vigente desde 2026-10-25: Development apunta al PostgreSQL
+  local Docker `pgsql/commerce`; tests y probes usan el servicio aislado
+  `pgsql.testing/commerce_testing`. Supabase no se utiliza actualmente.
+- La auditoría histórica no ejecutó EXPLAIN ni carga sobre Supabase compartido.
 - No hay SQL individual demostrado como lento en el probe; el problema fue volumen repetido.
 - Products usa paginación 15, eager load de default variant/categories y `withCount`, sin N+1 observado.
 - Categories usa paginación 20, eager parent y `withCount`, sin N+1 observado.

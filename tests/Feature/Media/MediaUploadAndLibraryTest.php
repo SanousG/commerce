@@ -7,6 +7,7 @@ use App\Modules\Access\Domain\Enums\SystemRole;
 use App\Modules\Media\Domain\Models\MediaAsset;
 use App\Modules\Tenancy\Application\TenantContext;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -57,6 +58,43 @@ class MediaUploadAndLibraryTest extends MediaFeatureTestCase
         config(['media.max_width' => 50]);
         $this->post(route('admin.media.store'), ['file' => $this->imageUpload('wide.jpg', 51, 10)])->assertInvalid('file');
         $this->assertDatabaseCount('media_assets', 0);
+    }
+
+    public function test_media_validation_messages_are_localized_and_never_expose_translation_keys(): void
+    {
+        config(['media.max_image_mb' => 1]);
+
+        $spanish = User::factory()->create();
+        $spanishTenant = $this->createTenantFor($spanish);
+        $this->actingAs($spanish)->withSession([TenantContext::SESSION_KEY => $spanishTenant->getKey()]);
+
+        $oversized = $this->postJson(route('admin.media.store'), [
+            'file' => UploadedFile::fake()->create('grande.jpg', 1025, 'image/jpeg'),
+        ])->assertUnprocessable()->assertJsonPath(
+            'errors.file.0',
+            'El campo archivo no debe superar 1024 kilobytes.',
+        );
+        $this->assertStringNotContainsString('validation.', $oversized->getContent());
+
+        $invalid = $this->postJson(route('admin.media.store'), [
+            'file' => UploadedFile::fake()->createWithContent('falsa.jpg', 'not-an-image'),
+        ])->assertUnprocessable()->assertJsonPath(
+            'errors.file.0',
+            'Solo se aceptan imágenes JPEG, PNG o WebP auténticas.',
+        );
+        $this->assertStringNotContainsString('validation.', $invalid->getContent());
+
+        $english = User::factory()->create(['admin_locale' => 'en']);
+        $englishTenant = $this->createTenantFor($english);
+        $englishResponse = $this->actingAs($english)
+            ->withSession([TenantContext::SESSION_KEY => $englishTenant->getKey()])
+            ->postJson(route('admin.media.store'), [
+                'file' => UploadedFile::fake()->create('large.jpg', 1025, 'image/jpeg'),
+            ])->assertUnprocessable()->assertJsonPath(
+                'errors.file.0',
+                'The file field must not be greater than 1024 kilobytes.',
+            );
+        $this->assertStringNotContainsString('validation.', $englishResponse->getContent());
     }
 
     public function test_library_is_tenant_scoped_searchable_and_paginated(): void
@@ -114,5 +152,69 @@ class MediaUploadAndLibraryTest extends MediaFeatureTestCase
         $this->post(route('admin.media.store'), ['file' => $this->imageUpload()])->assertForbidden();
         $this->patch(route('admin.media.update', $asset), ['title' => 'No'])->assertForbidden();
         $this->delete(route('admin.media.destroy', $asset))->assertForbidden();
+    }
+
+    public function test_owner_updates_title_and_alt_without_replacing_the_image(): void
+    {
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $asset = $this->createAsset($tenant, $user, ['title' => 'Old title', 'alt_text' => 'Old alt']);
+        $storageKey = $asset->storage_key;
+        $checksum = $asset->checksum;
+        $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
+
+        $this->patch(route('admin.media.update', $asset), ['title' => '  New title  ', 'alt_text' => '  New alt  '])->assertRedirect();
+
+        $asset->refresh();
+        $this->assertSame('New title', $asset->title);
+        $this->assertSame('New alt', $asset->alt_text);
+        $this->assertSame($storageKey, $asset->storage_key);
+        $this->assertSame($checksum, $asset->checksum);
+        Storage::disk('media-test')->assertExists($storageKey);
+
+        $this->patch(route('admin.media.update', $asset), ['title' => str_repeat('a', 161)])->assertInvalid('title');
+    }
+
+    public function test_library_serializes_catalog_usage_and_private_delivery_urls(): void
+    {
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $product = $this->createProduct($tenant);
+        $variant = $product->variants()->sole();
+        $asset = $this->createAsset($tenant, $user);
+        $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
+
+        $this->post(route('admin.products.media.store', $product), ['media_asset_id' => $asset->getKey()])->assertRedirect();
+        $this->post(route('admin.product-variants.media.store', $variant), ['media_asset_id' => $asset->getKey()])->assertRedirect();
+
+        $this->get(route('admin.media.index'))->assertInertia(fn (Assert $page) => $page
+            ->component('admin/media/Index')
+            ->has('media.data', 1)
+            ->where('media.data.0.usage_count', 2)
+            ->where('media.data.0.thumbnail_url', route('admin.media.thumbnail', $asset))
+            ->where('media.data.0.file_url', route('admin.media.file', $asset))
+            ->where('limits.max_image_mb', (int) config('media.max_image_mb')));
+    }
+
+    public function test_library_query_count_does_not_grow_with_page_volume(): void
+    {
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $this->createAsset($tenant, $user);
+        $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->get(route('admin.media.index'))->assertOk();
+        $baseline = count(DB::getQueryLog());
+
+        foreach (range(1, 5) as $number) {
+            $this->createAsset($tenant, $user, ['title' => "Extra {$number}"]);
+        }
+
+        DB::flushQueryLog();
+        $this->get(route('admin.media.index'))->assertOk();
+        $this->assertSame($baseline, count(DB::getQueryLog()));
+        DB::disableQueryLog();
     }
 }

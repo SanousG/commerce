@@ -68,7 +68,7 @@ class CreateProduct
     private function validateCategories(Tenant $tenant, array $categoryIds): void
     {
         if ($tenant->categories()->whereKey($categoryIds)->count() !== count(array_unique($categoryIds))) {
-            throw ValidationException::withMessages(['categories' => 'Every category must belong to the current company.']);
+            throw ValidationException::withMessages(['categories' => __('Every category must belong to the current company.')]);
         }
     }
 

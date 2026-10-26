@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\UserLocaleController;
 use App\Modules\Access\Http\Controllers\AccessController;
 use App\Modules\Analytics\Http\Controllers\AdminDashboardController;
 use App\Modules\Audit\Http\Controllers\ActivityController;
@@ -117,6 +118,7 @@ Route::middleware(['auth', 'auth.session', 'verified'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
+        Route::patch('/locale', [UserLocaleController::class, 'update'])->name('locale.update');
         Route::get('/tenants', [TenantController::class, 'index'])->name('tenants.index');
         Route::get('/tenants/create', [TenantController::class, 'create'])->name('tenants.create');
         Route::post('/tenants', [TenantController::class, 'store'])->name('tenants.store');
