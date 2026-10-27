@@ -13,7 +13,7 @@
 - Assets de Design System encontrados: **2**. No cuentan como pantallas Laravel.
 - Pantallas con prompt y plantilla asignada: **69/69 admin + 6 auth**.
 
-`ADM-001` fue aprobado e implementado como piloto visual. `ADM-013` fue implementado en Vue durante FASE 26.8 y queda pendiente de validación visual manual del resultado. `ADM-014`–`ADM-018` fueron implementados en Vue durante FASE 26.10–26.14; requieren validación visual manual del resultado. El usuario aprobó visualmente la referencia Stitch `ADM-015` desktop, aunque su HTML recuperable mantiene la observación de sincronización; la referencia mobile no está aprobada. La implementación de `ADM-016` descartó deliberadamente el árbol de Stitch y usa la lista plana paginada del contrato Laravel. `ADM-017` conserva exclusivamente name, parent y position; slug y estado permanecen controlados por servidor. `ADM-018` conserva slug read-only, jerarquía acíclica, read-only por RBAC y Archive separado del update visual. `ADM-019` fue rediseñada e internacionalizada en FASE 26.16 con los contratos Laravel preservados y queda pendiente de validación visual manual; `ADM-020` fue generada como candidata desktop/mobile. La auditoría técnica FASE 26.17 de `ADM-001` y `ADM-013`–`ADM-019` está documentada en `FASE_26_17_ADMIN_AUDIT.md`: los checks automatizados pasan, pero la aprobación visual y brechas de i18n Laravel permanecen pendientes.
+`ADM-001` fue aprobado e implementado como piloto visual. `ADM-013` fue implementado en Vue durante FASE 26.8 y queda pendiente de validación visual manual del resultado. `ADM-014`–`ADM-018` fueron implementados en Vue durante FASE 26.10–26.14; requieren validación visual manual del resultado. El usuario aprobó visualmente la referencia Stitch `ADM-015` desktop, aunque su HTML recuperable mantiene la observación de sincronización; la referencia mobile no está aprobada. La implementación de `ADM-016` descartó deliberadamente el árbol de Stitch y usa la lista plana paginada del contrato Laravel. `ADM-017` conserva exclusivamente name, parent y position; slug y estado permanecen controlados por servidor. `ADM-018` conserva slug read-only, jerarquía acíclica, read-only por RBAC y Archive separado del update visual. `ADM-019` fue rediseñada e internacionalizada en FASE 26.16. El módulo Listings `ADM-020`–`ADM-022` quedó implementado en Vue durante FASE 26.18–26.19; solo ADM-020 tiene referencias Stitch recuperables y ADM-021/022 se resolvieron desde el contrato Laravel y el sistema Executive Precision B2B, sin nuevas generaciones. Pricing `ADM-023`–`ADM-025` quedó implementado en Vue durante FASE 26.20, Promotions `ADM-026`–`ADM-028` durante FASE 26.21, Inventory/Costing `ADM-029`–`ADM-035` durante FASE 26.22, Customers `ADM-036`–`ADM-039` durante FASE 26.23, Cart `ADM-040`–`ADM-041` durante FASE 26.24, Checkout `ADM-042`–`ADM-044` durante FASE 26.25, Orders `ADM-045`–`ADM-046` durante FASE 26.26, Payments `ADM-047`–`ADM-049` durante FASE 26.27, Fulfillment `ADM-050`–`ADM-051` durante FASE 26.28, Returns/Exchanges `ADM-052`–`ADM-055` durante FASE 26.29, Refunds `ADM-056`–`ADM-057` durante FASE 26.30, Procurement `ADM-058`–`ADM-063` durante FASE 26.31, Tax `ADM-064` durante FASE 26.32 y Fiscal/SUNAT `ADM-065`–`ADM-067` durante FASE 26.33 desde sus contratos Laravel auditados, sin referencias ni generaciones Stitch. La auditoría técnica FASE 26.17 de `ADM-001` y `ADM-013`–`ADM-019` está documentada en `FASE_26_17_ADMIN_AUDIT.md`.
 
 ## Proyecto y artefactos recuperados
 
@@ -144,9 +144,12 @@ No se generaron pantallas independientes para estos estados durante esta fase.
 | ADM-016–018 · Categories Index/Create/Edit | REF-08 Categories | ADM-016: `045b5a63c318431c9daee046a4924631` / `9afecad50e4a4138ab4d1022ad3d4dab`; ADM-017: `e89785d0231f4e03bfb343f0b5faf6b9` / `052cb6cd3d064e9f8b44a0b67d44af9d`; ADM-018: `1d520fc67a054eb1b52c22a3701b651c` / `53b14fe0f55440f2b7a9cf1104c82521` | [index desktop][adm016-desktop-shot] · [index mobile][adm016-mobile-shot] · [create desktop][adm017-desktop-shot] · [create mobile][adm017-mobile-shot] · [edit desktop][adm018-desktop-shot] · [edit mobile][adm018-mobile-shot] | ADM-016, ADM-017 y ADM-018 implementadas en FASE 26.12–26.14 con contratos Laravel preservados; validación visual manual pendiente | **Sí** |
 | ADM-019 · `/admin/media` · Media Library | REF-09 Media library | desktop funcional `610e6ea35fde48f5a5e354b41f35c62d`; mobile funcional `3d9e23a8003c458087575f372e44697c` | [desktop funcional][adm019-functional-desktop-shot] · [mobile funcional][adm019-functional-mobile-shot] | Rediseñada e internacionalizada en FASE 26.16 con contratos Laravel preservados; validación visual manual pendiente; mobile visible, desktop solo recuperable | **Sí** |
 | ADM-020 · `/admin/listings` · Listings Index | REF-14 Listings | desktop `84a1d011736549e699fd19c66c68837e`; mobile `12e94170e33e439092b7222f6fd8d499` | [desktop][adm020-desktop-shot] · [mobile][adm020-mobile-shot] | Recuperables por ID; no listados ni incorporados. Desktop conserva discrepancias no sincronizadas; mobile es funcionalmente más fiel pero añade navegación inferior no canónica | **Sí** |
-| ADM-045 · `/admin/orders` · Orders Index | REF-17 Order workbench (index) | No asignado | No disponible | No encontrado; no generado | Sí; generación y revisión visual |
-| ADM-046 · `/admin/orders/{order}` · Order Detail | REF-17 Order workbench (detail) | No asignado | No disponible | No encontrado; no generado | Sí; generación y revisión visual |
-| ADM-012 · `/admin/stores/{store}/settings` · Store Settings | REF-10 Store settings | No asignado | No disponible | No encontrado; no generado | Sí; generación y revisión visual |
+| ADM-045 · `/admin/orders` · Orders Index | REF-17 Order workbench (index) | No asignado | No disponible | Implementada en Vue en FASE 26.26 desde contrato Laravel; no generada en Stitch | Sí; validación visual manual |
+| ADM-046 · `/admin/orders/{order}` · Order Detail | REF-17 Order workbench (detail) | No asignado | No disponible | Implementada en Vue en FASE 26.26 desde contrato Laravel; no generada en Stitch | Sí; validación visual manual |
+| ADM-047 · `/admin/payments` · Payments Index | REF-18 Payments/reverse logistics | No asignado | No disponible | Implementada en Vue en FASE 26.27 desde contrato Laravel; no generada en Stitch | Sí; validación visual manual |
+| ADM-048 · `/admin/payments/{payment}` · Payment Detail | REF-18 Payments/reverse logistics | No asignado | No disponible | Implementada en Vue en FASE 26.27 desde contrato Laravel; no generada en Stitch | Sí; validación visual manual |
+| ADM-049 · `/admin/settings/payments` · Payment Settings | REF-18 Payments/reverse logistics | No asignado | No disponible | Implementada en Vue en FASE 26.27 desde contrato Laravel; no generada en Stitch | Sí; validación visual manual |
+| ADM-012 · `/admin/stores/{store}/settings` · Store Settings | REF-10 Store settings | No asignado | No disponible | Implementada en Vue en FASE 26.38 desde contrato Laravel; no generada en Stitch | Sí; validación visual manual |
 
 Cobertura generada de las rutas administrativas: **9/69**. Cobertura documental de prompts: **69/69**. Las pantallas aún no aprobadas son diseños reales recuperables, no cobertura documental.
 
@@ -555,32 +558,308 @@ También existe `B2B Commerce Admin Dashboard` (`projects/4588129243879558020`) 
 | Plantilla | Pantallas | Cobertura Stitch real |
 |---|---|---|
 | REF-03 Dashboard | ADM-001 | **Aprobado: 1/1**; tablet con limitación de metadatos |
-| REF-06 Simple form | ADM-003, 006, 010, 011, 014, 017, 018, 024, 033, 034, 037, 059 | 3/12 (`ADM-014`, `ADM-017`, `ADM-018`) |
-| REF-11 Settings/access | ADM-004, 005, 007, 008, 009, 049, 064, 065 | 0/8 |
+| REF-06 Simple form | ADM-003, 006, 010, 011, 014, 017, 018, 024, 033, 034, 037, 059 | Stitch 3/12 (`ADM-014`, `ADM-017`, `ADM-018`); implementación Vue de `ADM-003` completada en FASE 26.36 |
+| REF-11 Settings/access | ADM-004, 005, 007, 008, 009, 049, 064, 065 | Stitch 0/8; implementación Vue de `ADM-004`, `ADM-005`, `ADM-007` y `ADM-008` completada en FASE 26.37 |
 | REF-05 Products index | ADM-013 | 1/1; implementada en Vue, pendiente de validación visual manual |
 | REF-07 Product workbench | ADM-014, 015 | 2/2; pendiente de aprobación |
 | REF-08 Categories | ADM-016, 017, 018 | 3/3; pendiente de aprobación |
 | REF-09 Media | ADM-019 | 1/1; pendiente de aprobación |
 | REF-10 Store settings | ADM-012 | 0/1 |
-| REF-13 Merchandising | ADM-023–028 | 0/6 |
-| REF-14 Listings | ADM-020–022 | 1/3 (`ADM-020` candidata desktop/mobile) |
-| REF-12 Inventory | ADM-029–035 | 0/7 |
-| REF-15 Customers | ADM-036–039 | 0/4 |
-| REF-16 Cart/Checkout | ADM-040–044 | 0/5 |
-| REF-17 Orders | ADM-045, 046 | 0/2 |
-| REF-18 Payments/reverse logistics | ADM-047, 048, 052–057 | 0/8 |
-| REF-19 Fulfillment | ADM-050, 051 | 0/2 |
-| REF-20 Procurement | ADM-058–063 | 0/6 |
-| REF-21 Fiscal/SUNAT | ADM-064–067 | 0/4 |
-| REF-22 Notifications/Audit | ADM-068, 069 | 0/2 |
-| REF-06 Tenant selection variant | ADM-002 | 0/1 |
+| REF-13 Merchandising | ADM-023–028 | Stitch 0/6; implementación Vue Pricing 3/3 (`ADM-023`–`ADM-025`) y Promotions 3/3 (`ADM-026`–`ADM-028`) completada en FASE 26.20–26.21 |
+| REF-14 Listings | ADM-020–022 | Stitch 1/3 (`ADM-020` candidata desktop/mobile); implementación Vue 3/3 completada en FASE 26.18–26.19 |
+| REF-12 Inventory | ADM-029–035 | Stitch 0/7; implementación Vue 7/7 completada en FASE 26.22 |
+| REF-15 Customers | ADM-036–039 | Stitch 0/4; implementación Vue 4/4 completada en FASE 26.23 |
+| REF-16 Cart/Checkout | ADM-040–044 | Stitch 0/5; implementación Vue Cart 2/2 (`ADM-040`–`ADM-041`) y Checkout 3/3 (`ADM-042`–`ADM-044`) completada en FASE 26.24–26.25 |
+| REF-17 Orders | ADM-045, 046 | Stitch 0/2; implementación Vue 2/2 completada en FASE 26.26 |
+| REF-18 Payments/reverse logistics | ADM-047, 048, 052–057 | Stitch 0/8; implementación Vue Payments 2/2 de esta referencia y Settings ADM-049 completada en FASE 26.27; Returns/Exchanges ADM-052–055 en FASE 26.29; Refunds ADM-056–057 en FASE 26.30 |
+| REF-19 Fulfillment | ADM-050, 051 | Stitch 0/2; implementación Vue 2/2 completada en FASE 26.28 |
+| REF-20 Procurement | ADM-058–063 | Stitch 0/6; implementación Vue 6/6 completada en FASE 26.31 |
+| REF-21 Tax/Fiscal/SUNAT | ADM-064–067 | Stitch 0/4; implementación Vue 4/4: Tax `ADM-064` en FASE 26.32 y Fiscal/SUNAT `ADM-065`–`ADM-067` en FASE 26.33 |
+| REF-22 Notifications/Audit | ADM-068, 069 | Stitch 0/2; implementación Vue 2/2: Notifications `ADM-068` en FASE 26.34 y Audit `ADM-069` en FASE 26.35 |
+| REF-06 Tenant selection variant | ADM-002 | Stitch 0/1; implementación Vue completada en FASE 26.36 |
 | REF-23 Authentication | AUTH-001–006 | 0/6; fuera del denominador admin |
+
+## Implementación Listings — FASE 26.18–26.19
+
+- ADM-020 Index fue rediseñada e internacionalizada en FASE 26.18 con tabla desktop, cards mobile, búsqueda, default price list, lifecycle y paginación reales.
+- ADM-021 Create y ADM-022 Edit fueron rediseñadas e internacionalizadas en FASE 26.19 sin generar pantallas Stitch ni modificar backend.
+- Create conserva máximo 50 Products elegibles, selector único, slug nullable, override opcional, estado DRAFT e inicialización transaccional de variants.
+- Edit conserva update único, búsqueda/paginación de 20 variants, preview server-side readonly, modo Archived, RBAC independiente y lifecycle real.
+- Documentación detallada: `ADM-020_IMPLEMENTATION.md`, `ADM-021_IMPLEMENTATION.md` y `ADM-022_IMPLEMENTATION.md`.
+- Cobertura Stitch real no cambia: ADM-021 continúa sin ID verificable y ADM-022 no fue generada. Cobertura Vue del módulo Listings: **3/3**.
+
+## Implementación Pricing — FASE 26.20
+
+- ADM-023 Index, ADM-024 Create y ADM-025 Edit fueron rediseñadas e internacionalizadas sin generar pantallas Stitch ni modificar backend.
+- Index conserva la colección tenant-wide paginada, estados/default/counts reales y acciones independientes Make default/Archive según RBAC.
+- Create conserva únicamente name, stable tenant-unique code y currency; Laravel crea la lista ACTIVE y no-default.
+- Edit conserva name/currency/status, restricciones de default/archive y currency inmutable tras asignar precios.
+- Los precios permanecen por `ProductVariant`, con set/remove por fila, escala 4 exacta, búsqueda Product/SKU y paginación server-side de 20.
+- Listings mantiene la resolución efectiva Listing → Store → Tenant default; Promotions y snapshots históricos no se modificaron.
+- Documentación detallada: `ADM-023-025_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Pricing: **3/3**.
+
+## Implementación Promotions — FASE 26.21
+
+- ADM-026 Index, ADM-027 Create y ADM-028 Edit fueron rediseñadas e internacionalizadas sin generar pantallas Stitch ni modificar backend.
+- Index conserva búsqueda name/code, paginación de 20, siete columnas reales, cards mobile y Archive lógico según RBAC.
+- Create/Edit comparten el formulario real para porcentaje o importe fijo, UTC semiabierto, prioridad y scope ALL/SELECTED con targets OR exactos.
+- Edit conserva modo readonly para Archived/rol sin update, Archive independiente y preview efectivo server-side sobre configuración guardada.
+- Pricing base, moneda exacta, escala 4, no stacking, integración Listings/Cart/Checkout/Orders e aislamiento Tenant permanecen intactos.
+- Documentación detallada: `ADM-026-028_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Promotions: **3/3**.
+
+## Implementación Inventory/Costing — FASE 26.22
+
+- ADM-029 Stock, ADM-030 Variant, ADM-031 Transfer, ADM-032 Locations, ADM-033 Create Location, ADM-034 Edit Location y ADM-035 Valuation fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend.
+- Stock conserva búsqueda Product/SKU, agregados tenant-wide y paginación 20; Variant conserva niveles, ajuste, costos autorizados y movimientos paginados 50.
+- Transfer conserva operación `COMPLETED` atómica entre Locations activas, variantes únicas, cantidades enteras positivas y validación de disponibilidad.
+- Locations conserva estados ACTIVE/INACTIVE/ARCHIVED, default activa protegida, Create no-default, Edit bajo `inventory.adjust` y ausencia de DELETE.
+- Valuation conserva promedio ponderado móvil, precisión 6/4, totales separados por moneda, ausencia de FX, búsqueda Product/SKU/Location y paginación 30.
+- RBAC `inventory.view`, `inventory.adjust`, `inventory.cost.view` e `inventory.cost.manage`, aislamiento Tenant e integraciones Procurement/Fulfillment/Returns permanecen intactos.
+- Documentación detallada: `ADM-029-035_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Inventory/Costing: **7/7**.
+
+## Implementación Customers — FASE 26.23
+
+- ADM-036 Index, ADM-037 Create, ADM-038 Show y ADM-039 Edit fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend.
+- Index conserva búsqueda por nombre/email/teléfono, filtro enum, paginación de 20, Address count, Archive lógico y acciones según RBAC.
+- Create/Edit conservan exclusivamente first/last name, email, teléfono, notas y estados reales; email/teléfono únicos por Tenant y requisito colectivo de identidad.
+- Show conserva direcciones vivas y Orders tenant-wide paginadas de 10; solo enlaza pedidos de la Store activa cuando existe `orders.view`.
+- Edit conserva operaciones independientes de Address (create/update/default/delete), modo readonly y separación de Archive; no existe DELETE de Customer.
+- RBAC, CSRF, `TenantContext`, aislamiento cross-tenant, snapshots de Checkout/Orders y privacidad de datos personales permanecen intactos.
+- Documentación detallada: `ADM-036-039_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Customers: **4/4**.
+
+## Implementación Cart — FASE 26.24
+
+- ADM-040 Index y ADM-041 Show fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend.
+- Index conserva búsqueda por prefijo de token o Customer, token parcial, cálculo batch, paginación de 20 y alta real de carrito invitado.
+- Show conserva cálculo server-side de precios/promociones/impuestos/stock, escala monetaria 4, asignación de Customer y add/update/remove/clear únicamente para `ACTIVE` bajo `carts.manage`.
+- Estados terminales quedan readonly; no se agregó DELETE de Cart, transición manual, reserva de inventario ni inicio de Checkout.
+- RBAC, CSRF, `TenantContext`, `StoreContext`, aislamiento cross-tenant/cross-store e integración Checkout/Orders permanecen intactos.
+- Documentación detallada: `ADM-040-041_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Cart: **2/2**. Checkout se completó posteriormente en FASE 26.25.
+
+## Implementación Checkout — FASE 26.25
+
+- ADM-042 Index, ADM-043 Start y ADM-044 Detail fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend.
+- Index conserva búsqueda por prefijo de token/nombre/email, filtro de los seis estados reales, token parcial, paginación de 20 y acciones según RBAC.
+- Start conserva hasta 100 Carts `ACTIVE`, no vacíos y sin Checkout operativo, con idempotencia y sin reservar inventario.
+- Detail conserva edición solo `PENDING`, preparación atómica a `READY`, snapshots escala 4 tax-inclusive, reservas, cancelación y creación idempotente de Order bajo permisos independientes.
+- RBAC, CSRF, `TenantContext`, `StoreContext`, aislamiento cross-tenant/cross-store e integración Cart/Pricing/Promotions/Tax/Inventory/Orders permanecen intactos.
+- Documentación detallada: `ADM-042-044_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Checkout: **3/3**.
+
+## Implementación Payments — FASE 26.27
+
+- ADM-047 Index, ADM-048 Detail y ADM-049 Settings fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend.
+- Index conserva búsqueda de Order, estado, `order_id`, agregado SQL de captures exitosos, referencias enmascaradas y paginación de 20.
+- Detail conserva resumen y ledger append-only; refund solo con `refunds.manage`, idempotencia, locks y saldo reembolsable validados exclusivamente por Laravel.
+- Settings conserva métodos de la Store y depósito COD `NONE`/`PERCENTAGE`/`FIXED_AMOUNT`; no expone credenciales ni altera snapshots existentes.
+- RBAC, CSRF, `TenantContext`, `StoreContext`, aislamiento cross-tenant/cross-store, precisión escala 4 e integración Orders permanecen intactos.
+- Documentación detallada: `ADM-047-049_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Payments: **3/3**.
+
+## Implementación Fulfillment — FASE 26.28
+
+- ADM-050 Index y ADM-051 Detail fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend.
+- Index conserva búsqueda por Order, estado, `order_id`, agregados de líneas/unidades, Shipment y paginación server-side de 20.
+- Detail conserva pick list, Location, reservas, costos autorizados, historial append-only y todas las transiciones reales de Fulfillment y Shipment condicionadas por capabilities de Laravel.
+- Locks, transacciones, elegibilidad de pago, movimientos `RESERVATION_COMMIT`, fulfillment parcial y proyección de estado de Order permanecen bajo autoridad exclusiva de Laravel.
+- RBAC, CSRF, `TenantContext`, `StoreContext`, aislamiento cross-tenant/cross-store e integración Orders/Inventory permanecen intactos.
+- Documentación detallada: `ADM-050-051_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Fulfillment: **2/2**.
+
+## Implementación Returns/Exchanges — FASE 26.29
+
+- ADM-052 Returns Index, ADM-053 Return Detail, ADM-054 Exchanges Index y ADM-055 Exchange Detail fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend.
+- Ambos listados conservan búsqueda Order/customer/email, filtros `status` y `order_id`, orden cronológico descendente y paginación server-side de 20; desktop usa tablas compactas y mobile cards sin overflow horizontal.
+- Return Detail conserva approve/reject/receive/inspect/restock/complete/cancel y creación de Exchange únicamente según capabilities de Laravel; presenta cantidades ordered/fulfilled/requested/received/accepted/restocked sin recalcular reglas de negocio en Vue.
+- Exchange Detail conserva únicamente `PENDING → APPROVED → COMPLETED` y cancelación desde `PENDING`/`APPROVED`, junto con referencias históricas a Return, Order y líneas de reemplazo.
+- Locks, transacciones, balances retornables/no asignados, movimientos `RETURN_RESTOCK`, costing, ledger financiero y snapshots históricos permanecen bajo autoridad exclusiva de Laravel.
+- RBAC, CSRF, `TenantContext`, `StoreContext`, aislamiento cross-tenant/cross-store e integraciones Orders/Fulfillment/Inventory/Refunds permanecen intactos.
+- Documentación detallada: `ADM-052-055_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Returns/Exchanges: **4/4**. Refunds ADM-056–057 se completó posteriormente en FASE 26.30.
+
+## Implementación Refunds — FASE 26.30
+
+- ADM-056 Refunds Index y ADM-057 Refund Detail fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend.
+- Index conserva búsqueda por Order, filtros `status`/`order_id`, orden descendente y paginación server-side de 20; presenta tabla desktop y cards mobile con Payment, Order, importe, moneda, estado y fecha.
+- Detail conserva Refund, Payment, Order, Return opcional, motivo, referencia, fechas y agregados `captured_total`/`refunded_total`/`refundable_remaining` calculados por Laravel.
+- La única operación es completar manualmente `PENDING → COMPLETED` bajo `refunds.manage`, con referencia externa, idempotencia, confirmación y prevención de doble envío; creación permanece en Payment Detail.
+- Escala decimal 4, moneda, locks, saldo acumulado, ledger append-only, auditoría, RBAC, CSRF y aislamiento Tenant+Store permanecen bajo autoridad exclusiva de Laravel.
+- No se añadieron aprobación, cancelación, reversión, gateway, webhook, conciliación ni procesamiento automático.
+- Documentación detallada: `ADM-056-057_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Refunds: **2/2**.
+
+## Implementación Procurement — FASE 26.31
+
+- ADM-058 Suppliers Index, ADM-059 Create Supplier, ADM-060 Edit Supplier, ADM-061 Purchase Orders Index, ADM-062 Create Purchase Order y ADM-063 Purchase Order Detail fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend.
+- Los listados conservan búsqueda, filtros y paginación server-side de 20; desktop usa tablas compactas y mobile cards sin overflow horizontal.
+- Supplier Edit conserva identidad, estado ACTIVE/INACTIVE, Archive lógico y asociaciones con Variant, costo escala 4, moneda, MOQ, múltiplo, lead time, preferencia y Archive independiente.
+- Purchase Order Create conserva proveedor activo, moneda única, fecha, notas y líneas dinámicas; Laravel sigue validando productos del proveedor, MOQ, múltiplos y snapshots.
+- Purchase Order Detail conserva edición DRAFT, líneas, approve, mark ordered, cancel, creación/edición/cancelación/post de receipts DRAFT y edición de sus líneas mediante endpoints existentes.
+- Posting de receipts continúa siendo atómico e idempotente y es la única operación que afecta Inventory/Costing; las cantidades recibidas y estados de la orden permanecen calculados por Laravel.
+- RBAC, CSRF, `TenantContext`, aislamiento cross-tenant y alcance tenant-wide independiente de Store permanecen intactos.
+- Documentación detallada: `ADM-058-063_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Procurement: **6/6**.
+
+## Implementación Tax — FASE 26.32
+
+- ADM-064 Taxes fue rediseñada e internacionalizada sin generar Stitch ni modificar backend.
+- Conserva las colecciones tenant-wide completas y ordenadas entregadas por Laravel; no inventa búsqueda, filtros o paginación que el endpoint no procesa.
+- Categorías y tasas usan tablas compactas desktop, cards mobile y formularios accesibles inline con errores visibles, prevención de doble envío y modo readonly.
+- Se preservan códigos `STANDARD`/`EXEMPT`/`UNAFFECTED`, estados `ACTIVE`/`INACTIVE`, porcentaje decimal escala 6, fechas inclusivas opcionales, periodos activos no superpuestos y tasa cero para exonerado/inafecto.
+- RBAC `taxes.view`/`taxes.manage`, CSRF, `TenantContext`, aislamiento cross-tenant, transacciones, locks, `BigDecimal` y snapshots de Checkout/Order permanecen bajo autoridad de Laravel.
+- Documentación detallada: `ADM-064_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Tax: **1/1**.
+
+## Implementación Fiscal/SUNAT — FASE 26.33
+
+- ADM-065 Fiscal Settings, ADM-066 Fiscal Documents y ADM-067 Fiscal Document Detail fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend.
+- Settings conserva emisor tenant-wide, series de Store activa, correlativo readonly, bloqueo de identidad tras iniciar numeración y ausencia total de secretos SUNAT.
+- Index conserva búsqueda, filtros enum/fecha, eager loading de Order, alcance Tenant+Store y paginación server-side de 20; desktop usa tabla compacta y mobile cards.
+- Detail conserva snapshots inmutables de emisor/cliente/líneas/impuestos/totales, relación Order, historial de intentos, notas de crédito relacionadas y descargas privadas autorizadas.
+- El único envío disponible continúa siendo Factura bajo `fiscal_documents.manage`, POST con CSRF/rate limit y elegibilidad Laravel; `UNKNOWN`/`SUBMITTED` no habilitan reenvío ciego y Boleta individual permanece bloqueada.
+- No se recalculan impuestos/importes, no se regeneran snapshots y no se añadieron producción, Daily Summary funcional, `getStatus`, PDF, anulaciones ni emisión de Nota de Crédito.
+- Documentación detallada: `ADM-065-067_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue del módulo Fiscal/SUNAT: **3/3** y cobertura Vue REF-21: **4/4**.
+
+## Implementación Notifications — FASE 26.34
+
+- ADM-068 Notification Center fue rediseñada e internacionalizada sin generar Stitch ni modificar backend.
+- Conserva filtros booleanos `unread`/`active`/`resolved`, severidad, tipo, orden descendente y paginación server-side de 25.
+- Conserva exclusivamente mark-one/all-read, dismiss y links autorizados; las acciones tienen confirmación cuando corresponde y prevención de doble envío.
+- `TenantContext`, `StoreContext`, destinatario autenticado y permiso actual por tipo siguen filtrando lecturas y mutaciones; referencias ajenas devuelven 404.
+- Desktop y mobile usan lista compacta responsive, estados accesibles y paginación Inertia, sin scroll horizontal ni navegación inferior.
+- Documentación detallada: `ADM-068_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue rediseñada acumulada: **57/69** (`ADM-001`, `ADM-013`–`ADM-068`).
+
+## Implementación Audit — FASE 26.35
+
+- ADM-069 Activity fue rediseñada e internacionalizada sin generar Stitch ni modificar backend, dominio, rutas o `AuditRecorder`.
+- Conserva ledger append-only tenant-wide, autorización `audit.view`, filtro de Store actual cuando se solicita, orden `occurred_at`/`id` descendente y paginación server-side de 50.
+- La UI representa exclusivamente actor, acción, recurso, Store, fecha y metadata sanitizada presentes en las props; no inventa búsqueda, exportación, estadísticas, detalle independiente ni enlaces relacionados.
+- Los filtros visibles son acción, tipo de recurso, actor, Store y rango de fechas. `subject_id` permanece solo como capacidad HTTP no representada por las props `filters` del controller.
+- Desktop usa tabla compacta y mobile 390 px cards; la metadata se muestra como texto con quiebre seguro, sin requests adicionales ni exposición de contexto interno no serializado.
+- Documentación detallada: `ADM-069_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue rediseñada acumulada: **58/69** (`ADM-001`, `ADM-013`–`ADM-069`).
+
+## Implementación Tenancy — FASE 26.36
+
+- ADM-002 Companies y ADM-003 Create Company fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend, dominio, rutas o contexto.
+- Companies conserva exclusivamente memberships activas en Tenants activos, eager loading de Tenant/rol, orden por nombre y selección mediante POST; no añade búsqueda, filtros ni paginación.
+- Create Company conserva un solo nombre requerido de máximo 120 caracteres. La transacción crea Tenant activo, membership OWNER activa, lista de precios y ubicación de inventario predeterminadas.
+- Selección y creación actualizan el Tenant activo, limpian siempre la Store previa y redirigen al dashboard; Laravel vuelve a resolver una Store válida para el nuevo contexto.
+- IDs ajenos, memberships no activas y Tenants no activos permanecen bloqueados. Vue no usa `tenant_id` como autoridad ni carga datos de todos los Tenants.
+- Documentación detallada: `ADM-002-003_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue rediseñada acumulada: **60/69** (`ADM-001`–`ADM-003`, `ADM-013`–`ADM-069`).
+
+## Implementación Access / Settings — FASE 26.37
+
+- ADM-004–008 fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend, dominio, rutas, Gates o matriz RBAC.
+- Access conserva la matriz global readonly `OWNER`/`ADMIN`/`MEMBER` y permisos efectivos de la membership actual; no añade custom roles ni overrides.
+- Settings Hub continúa derivando setup desde registros reales y oculta tarjetas no autorizadas; Company Settings actualiza solo el nombre con `settings.manage` y ofrece readonly con `settings.view`.
+- Team conserva miembros e invitaciones no paginados, cambios de rol, suspensión/reactivación y reenvío/revocación. La UI refleja self-lock y último OWNER, pero Laravel sigue validando permisos, Tenant e invariantes bajo locks.
+- Notification Preferences continúa siendo personal por Tenant/usuario, con email opt-in y tipos opcionales silenciables. Las alertas fiscales obligatorias no pueden silenciarse.
+- Desktop usa matriz/tablas compactas y mobile 390 px usa cards/formularios apilados sin scroll horizontal.
+- Documentación detallada: `ADM-004-008_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue rediseñada acumulada: **65/69** (`ADM-001`–`ADM-008`, `ADM-013`–`ADM-069`).
+
+## Implementación Stores — FASE 26.38
+
+- ADM-009–012 fueron rediseñadas e internacionalizadas sin generar Stitch ni modificar backend, dominio, rutas, contratos HTTP o consultas.
+- Stores conserva listado por Tenant activo, selección exclusiva de Stores activas, creación y edición `ACTIVE`/`INACTIVE`; no existe archivado, eliminación, búsqueda ni paginación.
+- Store Settings conserva identidad, branding Media same-Tenant, contacto, dirección PE, redes oficiales y regionalización, con versiones optimistas y conflicto HTTP 409.
+- `stores.view/create/select/update`, `TenantContext`, `StoreContext`, memberships y scoping por `Tenant::stores()` siguen siendo autoritativos. El modo readonly existe solo donde el backend permite lectura sin mutación.
+- Desktop usa cards/formularios compactos y mobile 390 px apila contenido sin scroll horizontal ni navegación inferior.
+- Documentación detallada: `ADM-009-012_IMPLEMENTATION.md`.
+- Cobertura Stitch real permanece en **9/69**; cobertura Vue rediseñada acumulada: **69/69** (`ADM-001`–`ADM-069`).
+
+### Cobertura final ADM-001–069
+
+La columna **Vue** distingue implementación/rediseño de cobertura Stitch. Las 69 rutas tienen componente Inertia rediseñado e internacionalizado; esto no equivale a aprobación visual ni a una pantalla generada en Stitch. Las operaciones deliberadamente no soportadas se excluyen de la UI en vez de inventarse.
+
+| ID ADM | Pantalla | Módulo | Ruta | Estado de implementación Vue | Internacionalización | Funcionalidad backend existente | Fase recomendada |
+|---|---|---|---|---|---|---|---|
+| ADM-001 | Dashboard | Analytics | `/admin/dashboard` | Implementada/rediseñada | es-PE/en | KPIs, rango y proyecciones RBAC | Completa |
+| ADM-002 | Companies | Tenancy | `/admin/tenants` | Implementada/rediseñada | es-PE/en | Listar memberships activas y seleccionar Tenant | Completa en FASE 26.36 |
+| ADM-003 | Create company | Tenancy | `/admin/tenants/create` | Implementada/rediseñada | es-PE/en | Crear Tenant y defaults atómicos | Completa en FASE 26.36 |
+| ADM-004 | Access matrix | Access | `/admin/access` | Implementada/rediseñada | es-PE/en | Matriz de roles/permisos readonly | Completa en FASE 26.37 |
+| ADM-005 | Settings hub | Tenancy | `/admin/settings` | Implementada/rediseñada | es-PE/en | Hub y estado de configuración por RBAC | Completa en FASE 26.37 |
+| ADM-006 | Company settings | Tenancy | `/admin/settings/general` | Implementada/rediseñada | es-PE/en | Editar nombre de empresa | Completa en FASE 26.37 |
+| ADM-007 | Team & Access | Tenancy | `/admin/settings/team` | Implementada/rediseñada | es-PE/en | Miembros, roles e invitaciones | Completa en FASE 26.37 |
+| ADM-008 | Notification preferences | Notifications | `/admin/settings/notifications` | Implementada/rediseñada | es-PE/en | Email opt-in y tipos silenciados | Completa en FASE 26.37 |
+| ADM-009 | Stores | Stores | `/admin/stores` | Implementada/rediseñada | es-PE/en | Listar/seleccionar Stores | Completa en FASE 26.38 |
+| ADM-010 | Create store | Stores | `/admin/stores/create` | Implementada/rediseñada | es-PE/en | Crear Store | Completa en FASE 26.38 |
+| ADM-011 | Edit store | Stores | `/admin/stores/{store}/edit` | Implementada/rediseñada | es-PE/en | Editar identidad/estado regional | Completa en FASE 26.38 |
+| ADM-012 | Store settings | Stores | `/admin/stores/{store}/settings` | Implementada/rediseñada | es-PE/en | Branding, contacto, dirección y región | Completa en FASE 26.38 |
+| ADM-013 | Products | Catalog | `/admin/products` | Implementada/rediseñada | es-PE/en | Listado, búsqueda, paginación y archive | Completa |
+| ADM-014 | Create product | Catalog | `/admin/products/create` | Implementada/rediseñada | es-PE/en | Crear producto y variante inicial | Completa |
+| ADM-015 | Edit product | Catalog | `/admin/products/{product}/edit` | Implementada/rediseñada | es-PE/en | Producto, options, variants, media y pricing | Completa |
+| ADM-016 | Categories | Catalog | `/admin/categories` | Implementada/rediseñada | es-PE/en | Lista plana paginada y archive | Completa |
+| ADM-017 | Create category | Catalog | `/admin/categories/create` | Implementada/rediseñada | es-PE/en | Crear categoría | Completa |
+| ADM-018 | Edit category | Catalog | `/admin/categories/{category}/edit` | Implementada/rediseñada | es-PE/en | Editar jerarquía/estado | Completa |
+| ADM-019 | Media library | Media | `/admin/media` | Implementada/rediseñada | es-PE/en | Buscar, subir, editar metadata y eliminar | Completa |
+| ADM-020 | Listings | Listings | `/admin/listings` | Implementada/rediseñada | es-PE/en | Listado, Store price list y lifecycle | Completa |
+| ADM-021 | Create listing | Listings | `/admin/listings/create` | Implementada/rediseñada | es-PE/en | Crear listing DRAFT | Completa |
+| ADM-022 | Edit listing | Listings | `/admin/listings/{listing}/edit` | Implementada/rediseñada | es-PE/en | Variantes y lifecycle | Completa |
+| ADM-023 | Price lists | Pricing | `/admin/pricing` | Implementada/rediseñada | es-PE/en | Listado/default/archive | Completa |
+| ADM-024 | Create price list | Pricing | `/admin/pricing/price-lists/create` | Implementada/rediseñada | es-PE/en | Crear lista | Completa |
+| ADM-025 | Edit price list | Pricing | `/admin/pricing/price-lists/{priceList}/edit` | Implementada/rediseñada | es-PE/en | Configuración y precios por variante | Completa |
+| ADM-026 | Promotions | Promotions | `/admin/promotions` | Implementada/rediseñada | es-PE/en | Buscar/listar/archive | Completa |
+| ADM-027 | Create promotion | Promotions | `/admin/promotions/create` | Implementada/rediseñada | es-PE/en | Crear regla y targets | Completa |
+| ADM-028 | Edit promotion | Promotions | `/admin/promotions/{promotion}/edit` | Implementada/rediseñada | es-PE/en | Editar, preview y archive | Completa |
+| ADM-029 | Stock | Inventory | `/admin/inventory` | Implementada/rediseñada | es-PE/en | Stock agregado y búsqueda | Completa |
+| ADM-030 | Variant stock | Inventory | `/admin/inventory/variants/{variant}` | Implementada/rediseñada | es-PE/en | Niveles, ajustes, costo y kardex | Completa |
+| ADM-031 | Transfer stock | Inventory | `/admin/inventory/transfers/create` | Implementada/rediseñada | es-PE/en | Transferencia atómica | Completa |
+| ADM-032 | Locations | Inventory | `/admin/inventory/locations` | Implementada/rediseñada | es-PE/en | Lista y default | Completa |
+| ADM-033 | Create location | Inventory | `/admin/inventory/locations/create` | Implementada/rediseñada | es-PE/en | Crear ubicación | Completa |
+| ADM-034 | Edit location | Inventory | `/admin/inventory/locations/{location}/edit` | Implementada/rediseñada | es-PE/en | Editar ubicación | Completa |
+| ADM-035 | Inventory valuation | Costing | `/admin/inventory/valuation` | Implementada/rediseñada | es-PE/en | Valorización paginada | Completa |
+| ADM-036 | Customers | Customers | `/admin/customers` | Implementada/rediseñada | es-PE/en | Buscar/listar/archive | Completa |
+| ADM-037 | Create customer | Customers | `/admin/customers/create` | Implementada/rediseñada | es-PE/en | Crear cliente | Completa |
+| ADM-038 | Customer detail | Customers | `/admin/customers/{customer}` | Implementada/rediseñada | es-PE/en | Perfil, direcciones y pedidos | Completa |
+| ADM-039 | Edit customer | Customers | `/admin/customers/{customer}/edit` | Implementada/rediseñada | es-PE/en | Cliente y libreta de direcciones | Completa |
+| ADM-040 | Carts | Cart | `/admin/carts` | Implementada/rediseñada | es-PE/en | Buscar/listar/crear | Completa |
+| ADM-041 | Cart detail | Cart | `/admin/carts/{cart}` | Implementada/rediseñada | es-PE/en | Items, customer y cálculo | Completa |
+| ADM-042 | Checkouts | Checkout | `/admin/checkouts` | Implementada/rediseñada | es-PE/en | Buscar/listar | Completa |
+| ADM-043 | Start checkout | Checkout | `/admin/checkouts/create` | Implementada/rediseñada | es-PE/en | Crear desde Cart elegible | Completa |
+| ADM-044 | Checkout detail | Checkout | `/admin/checkouts/{checkout}` | Implementada/rediseñada | es-PE/en | Editar, preparar, cancelar y convertir | Completa |
+| ADM-045 | Orders | Orders | `/admin/orders` | Implementada/rediseñada | es-PE/en | Búsqueda/filtros/paginación | Completa |
+| ADM-046 | Order detail | Orders | `/admin/orders/{order}` | Implementada/rediseñada | es-PE/en | Workbench comercial/operativo | Completa |
+| ADM-047 | Payments | Payments | `/admin/payments` | Implementada/rediseñada | es-PE/en | Búsqueda/filtros/paginación | Completa |
+| ADM-048 | Payment detail | Payments | `/admin/payments/{payment}` | Implementada/rediseñada | es-PE/en | Ledger y creación de refund | Completa |
+| ADM-049 | Payment settings | Payments | `/admin/settings/payments` | Implementada/rediseñada | es-PE/en | Métodos y depósito COD | Completa |
+| ADM-050 | Fulfillments | Fulfillment | `/admin/fulfillments` | Implementada/rediseñada | es-PE/en | Búsqueda/listado | Completa |
+| ADM-051 | Fulfillment detail | Fulfillment | `/admin/fulfillments/{fulfillment}` | Implementada/rediseñada | es-PE/en | Pick, transiciones y Shipment | Completa |
+| ADM-052 | Returns | Returns | `/admin/returns` | Implementada/rediseñada | es-PE/en | Búsqueda/filtros/paginación | Completa |
+| ADM-053 | Return detail | Returns | `/admin/returns/{return}` | Implementada/rediseñada | es-PE/en | Lifecycle, inspección y restock | Completa |
+| ADM-054 | Exchanges | Returns | `/admin/exchanges` | Implementada/rediseñada | es-PE/en | Búsqueda/filtros/paginación | Completa |
+| ADM-055 | Exchange detail | Returns | `/admin/exchanges/{exchange}` | Implementada/rediseñada | es-PE/en | Aprobar/completar/cancelar | Completa |
+| ADM-056 | Refunds | Payments | `/admin/refunds` | Implementada/rediseñada | es-PE/en | Búsqueda/filtros/paginación | Completa |
+| ADM-057 | Refund detail | Payments | `/admin/refunds/{refund}` | Implementada/rediseñada | es-PE/en | Completar refund pendiente | Completa |
+| ADM-058 | Suppliers | Procurement | `/admin/suppliers` | Implementada/rediseñada | es-PE/en | Buscar/listar | Completa |
+| ADM-059 | Create supplier | Procurement | `/admin/suppliers/create` | Implementada/rediseñada | es-PE/en | Crear proveedor | Completa |
+| ADM-060 | Edit supplier | Procurement | `/admin/suppliers/{supplier}/edit` | Implementada/rediseñada | es-PE/en | Proveedor y productos asociados | Completa |
+| ADM-061 | Purchase orders | Procurement | `/admin/purchase-orders` | Implementada/rediseñada | es-PE/en | Buscar/listar | Completa |
+| ADM-062 | Create purchase order | Procurement | `/admin/purchase-orders/create` | Implementada/rediseñada | es-PE/en | Crear borrador con líneas | Completa |
+| ADM-063 | Purchase order detail | Procurement | `/admin/purchase-orders/{purchaseOrder}` | Implementada/rediseñada | es-PE/en | Lifecycle y recepciones | Completa |
+| ADM-064 | Taxes | Tax | `/admin/taxes` | Implementada/rediseñada | es-PE/en | Categorías y tasas | Completa |
+| ADM-065 | Fiscal settings | Fiscal | `/admin/settings/fiscal` | Implementada/rediseñada | es-PE/en | Emisor y series | Completa |
+| ADM-066 | Fiscal documents | Fiscal | `/admin/fiscal-documents` | Implementada/rediseñada | es-PE/en | Búsqueda/filtros/paginación | Completa |
+| ADM-067 | Fiscal document detail | Fiscal | `/admin/fiscal-documents/{fiscalDocument}` | Implementada/rediseñada | es-PE/en | Snapshot, SUNAT y artefactos | Completa |
+| ADM-068 | Notification center | Notifications | `/admin/notifications` | Implementada/rediseñada | es-PE/en | Filtros, paginación, read/dismiss y links | Completa en FASE 26.34 |
+| ADM-069 | Activity | Audit | `/admin/activity` | Implementada/rediseñada | es-PE/en | Ledger readonly, filtros, metadata y paginación | Completa en FASE 26.35 |
+
+**Cobertura Vue final:** `ADM-001`–`ADM-069` verificados uno por uno e implementados/rediseñados: **69/69**.
+
+**Cobertura Stitch real:** **9/69**. La implementación Vue no se contabiliza como generación o aprobación Stitch.
 
 ## Próximo paso recomendado, no ejecutado
 
-Antes de continuar con ADM-023–028, localizar o descartar manualmente en el historial de Stitch la posible generación asíncrona de ADM-021 y conseguir sincronización estable. Después, completar ADM-021/022 sin repetir el desktop ambiguo; solo tras aprobación visual de Listings continuar con ADM-023–025 Pricing y ADM-026–028 Promotions.
-
-La implementación Vue y toda generación adicional quedan detenidas hasta aprobación explícita.
+Realizar validación visual manual acumulada en desktop y mobile 390 px. No se inició el siguiente módulo. La generación Stitch adicional permanece detenida.
 
 [project]: https://stitch.withgoogle.com/projects/13874730587997489426
 [desktop-current-shot]: https://lh3.googleusercontent.com/aida/AEtjO1UvYP1MbuedNsxTMziWvKZVHak9YV0PXPG2iCPqRUkhvUEgVsmjny9joosM7a3KSF1NmEXD_xu9S6FrWov_FZ9DE2xf4NXofjvnFoOYhUKAE4ZkdzMjNKw28Vmmy9YOa9EYG-RvBkjSSHFj_WbWAV8C-91CpTa4JS8E0PkQO-8vcjZvWoMAB2uLnTloQn4vBkBc9PogKBswiWDwpm60h6aYmXjBhQ8Ry3--EVxHsutmfal6rVpPlRArSI0

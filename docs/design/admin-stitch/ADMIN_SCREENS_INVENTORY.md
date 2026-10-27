@@ -1,10 +1,10 @@
 # Inventario real de pantallas administrativas
 
-Fecha de corte: 2026-10-18. Fuente: `routes/web.php`, `php artisan route:list --json`, los 69 `Inertia::render()` administrativos, controladores, Form Requests y `resources/js/pages/admin/**`.
+Fecha de corte: 2026-10-27. Fuente: `routes/web.php`, `php artisan route:list --json`, los 69 `Inertia::render()` administrativos, controladores, Form Requests y `resources/js/pages/admin/**`.
 
 ## Resultado del descubrimiento
 
-- 225 rutas registradas; 207 usan prefijo `admin/`.
+- 226 rutas registradas; 208 usan prefijo `admin/`. El incremento respecto al corte anterior corresponde a la preferencia de idioma del administrador.
 - 74 rutas administrativas GET, pero solo **69 pantallas Inertia reales**.
 - `admin.media.show`, `admin.media.thumbnail` y `admin.media.file` son JSON/archivos privados, no pantallas.
 - `admin.fiscal-documents.artifacts.download` descarga un artefacto privado, no es pantalla.
