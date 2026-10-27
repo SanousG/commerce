@@ -114,4 +114,69 @@
     .admin-table tbody tr:hover {
         background: var(--color-admin-canvas);
     }
+
+    .auth-control {
+        width: 100%;
+        min-height: 2.75rem;
+        border: 1px solid var(--color-admin-border-strong);
+        border-radius: 0.5rem;
+        background: var(--color-admin-surface);
+        padding: 0.625rem 0.75rem;
+        color: var(--color-admin-text);
+        font-size: 0.875rem;
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .auth-control::placeholder {
+        color: #94a3b8;
+    }
+
+    .auth-control:hover {
+        border-color: #94a3b8;
+    }
+
+    .auth-control:focus {
+        border-color: var(--color-admin-secondary);
+        box-shadow: 0 0 0 3px rgb(37 99 235 / 0.12);
+        outline: none;
+    }
+
+    .auth-control[aria-invalid='true'] {
+        border-color: var(--color-admin-danger);
+    }
+
+    .auth-primary-button {
+        display: inline-flex;
+        min-height: 2.75rem;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.5rem;
+        background: var(--color-admin-primary);
+        padding: 0.625rem 1rem;
+        color: white;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: background-color 150ms ease, opacity 150ms ease;
+    }
+
+    .auth-primary-button:hover:not(:disabled) {
+        background: var(--color-admin-primary-hover);
+    }
+
+    .auth-primary-button:disabled {
+        cursor: wait;
+        opacity: 0.6;
+    }
+
+    .auth-link {
+        color: var(--color-admin-secondary);
+        font-weight: 600;
+        text-underline-offset: 0.2em;
+    }
+
+    .auth-link:hover {
+        color: var(--color-admin-primary);
+        text-decoration-line: underline;
+    }
 }

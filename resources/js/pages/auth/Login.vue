@@ -33,60 +33,63 @@ const submit = () => {
     >
         <StatusNotice :message="status" />
 
-        <form class="space-y-5" @submit.prevent="submit">
+        <form class="space-y-5" novalidate @submit.prevent="submit">
             <div>
-                <label for="email" class="mb-2 block text-sm font-semibold">{{ t('auth.common.email') }}</label>
+                <label for="login-email" class="mb-1.5 block text-sm font-semibold text-admin-text">{{ t('auth.common.email') }}</label>
                 <input
-                    id="email"
+                    id="login-email"
                     v-model="form.email"
                     type="email"
                     autocomplete="email"
                     required
                     autofocus
-                    aria-describedby="email-error"
+                    :placeholder="t('auth.common.emailPlaceholder')"
+                    aria-describedby="login-email-error"
                     :aria-invalid="Boolean(form.errors.email)"
-                    class="w-full border border-[#17211b]/25 bg-white/70 px-4 py-3 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                    class="auth-control"
                 />
-                <FieldError id="email-error" :message="form.errors.email" />
+                <FieldError id="login-email-error" :message="form.errors.email" />
             </div>
 
             <div>
-                <div class="mb-2 flex items-center justify-between gap-4">
-                    <label for="password" class="text-sm font-semibold">{{ t('auth.common.password') }}</label>
-                    <Link href="/forgot-password" class="text-sm font-medium text-emerald-800 underline-offset-4 hover:underline">
+                <div class="mb-1.5 flex items-center justify-between gap-4">
+                    <label for="login-password" class="text-sm font-semibold text-admin-text">{{ t('auth.common.password') }}</label>
+                    <Link href="/forgot-password" class="auth-link text-xs sm:text-sm">
                         {{ t('auth.login.forgot') }}
                     </Link>
                 </div>
                 <input
-                    id="password"
+                    id="login-password"
                     v-model="form.password"
                     type="password"
                     autocomplete="current-password"
                     required
-                    aria-describedby="password-error"
+                    :placeholder="t('auth.common.passwordPlaceholder')"
+                    aria-describedby="login-password-error"
                     :aria-invalid="Boolean(form.errors.password)"
-                    class="w-full border border-[#17211b]/25 bg-white/70 px-4 py-3 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/15"
+                    class="auth-control"
                 />
-                <FieldError id="password-error" :message="form.errors.password" />
+                <FieldError id="login-password-error" :message="form.errors.password" />
             </div>
 
-            <label class="flex w-fit items-center gap-3 text-sm text-[#39473f]">
-                <input v-model="form.remember" type="checkbox" class="size-4 accent-emerald-800" />
-                {{ t('auth.login.remember') }}
+            <label for="remember" class="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-admin-text-secondary">
+                <input id="remember" v-model="form.remember" type="checkbox" class="size-4 rounded border-admin-border-strong accent-admin-secondary" />
+                <span>{{ t('auth.login.remember') }}</span>
             </label>
 
             <button
                 type="submit"
                 :disabled="form.processing"
-                class="w-full bg-[#17211b] px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-60"
+                class="auth-primary-button"
             >
+                <svg v-if="form.processing" viewBox="0 0 24 24" fill="none" class="mr-2 size-4 animate-spin" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
                 {{ form.processing ? t('auth.login.submitting') : t('auth.login.submit') }}
             </button>
         </form>
 
-        <p class="mt-7 text-sm text-[#516057]">
+        <p class="mt-6 border-t border-admin-border pt-5 text-center text-sm text-admin-neutral">
             {{ t('auth.login.newHere') }}
-            <Link href="/register" class="font-semibold text-emerald-800 underline-offset-4 hover:underline">
+            <Link href="/register" class="auth-link ml-1">
                 {{ t('auth.login.register') }}
             </Link>
         </p>
