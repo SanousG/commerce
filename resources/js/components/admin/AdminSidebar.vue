@@ -18,9 +18,6 @@ const allowed = (permission?: string) => !permission || permissions.value.includ
 const active = (href: string) => page.url === href || (href !== '/admin/dashboard' && page.url.startsWith(`${href}/`));
 const initials = computed(() => user.value?.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'U');
 const { t } = useI18n();
-const navKey: Record<string, string> = {
-    Overview: 'overview', Dashboard: 'dashboard', Notifications: 'notifications', Catalog: 'catalog', Products: 'products', Media: 'media', Categories: 'categories', Listings: 'listings', Merchandising: 'merchandising', Pricing: 'pricing', Promotions: 'promotions', Sales: 'sales', Orders: 'orders', Carts: 'carts', Checkouts: 'checkouts', Payments: 'payments', Operations: 'operations', Fulfillment: 'fulfillment', Returns: 'returns', Refunds: 'refunds', Exchanges: 'exchanges', Customers: 'customers', Inventory: 'inventory', Stock: 'stock', Valuation: 'valuation', Locations: 'locations', Procurement: 'procurement', Suppliers: 'suppliers', 'Purchase orders': 'purchaseOrders', Compliance: 'compliance', 'Fiscal documents': 'fiscalDocuments', Taxes: 'taxes', Workspace: 'workspace', Activity: 'activity',
-};
 </script>
 
 <template>
@@ -40,8 +37,8 @@ const navKey: Record<string, string> = {
         </div>
 
         <nav class="min-h-0 flex-1 overflow-y-auto px-3 py-4" :aria-label="t('shell.adminNavigation')">
-            <section v-for="section in adminNavigation" :key="section.label" v-show="section.items.some((item) => allowed(item.permission))" class="mb-5">
-                <h2 class="mb-1.5 px-2 text-[9px] font-semibold tracking-[0.12em] text-slate-400 uppercase">{{ t(`nav.${navKey[section.label]}`) }}</h2>
+            <section v-for="section in adminNavigation" :key="section.translationKey" v-show="section.items.some((item) => allowed(item.permission))" class="mb-5">
+                <h2 class="mb-1.5 px-2 text-[9px] font-semibold tracking-[0.12em] text-slate-400 uppercase">{{ t(section.translationKey) }}</h2>
                 <div class="grid gap-0.5">
                     <Link
                         v-for="item in section.items.filter((entry) => allowed(entry.permission))"
@@ -51,7 +48,7 @@ const navKey: Record<string, string> = {
                         :class="active(item.href) ? 'bg-admin-primary text-white' : 'text-admin-text-secondary hover:bg-slate-100 hover:text-admin-primary'"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="size-4 shrink-0" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.65" :d="item.icon" /></svg>
-                        <span class="truncate">{{ t(`nav.${navKey[item.label]}`) }}</span>
+                        <span class="truncate">{{ t(item.translationKey) }}</span>
                         <span v-if="item.href === '/admin/notifications' && unread" class="ml-auto min-w-4 rounded-full px-1 text-center text-[9px] leading-4" :class="active(item.href) ? 'bg-white text-admin-primary' : 'bg-admin-primary text-white'">{{ unread > 99 ? '99+' : unread }}</span>
                     </Link>
                 </div>

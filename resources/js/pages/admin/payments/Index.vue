@@ -1,38 +1,57 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.vue';
+import EmptyState from '../../../components/admin/EmptyState.vue';
+import PageHeader from '../../../components/admin/PageHeader.vue';
+import Pagination from '../../../components/admin/Pagination.vue';
+import StatusBadge from '../../../components/admin/StatusBadge.vue';
 import AdminLayout from '../../../layouts/AdminLayout.vue';
 
 interface Payment { id: string; order_id: string; order_number: string; method: string; provider: string; status: string; currency: string; amount: string; captured_amount: string; external_reference: string | null; created_at: string }
 interface PageLink { url: string | null; label: string; active: boolean }
+interface Paginator { data: Payment[]; links: PageLink[]; from?: number | null; to?: number | null; total?: number }
 interface PaymentFilters { search: string; status: string; order_id: string }
 
-const props = defineProps<{
-    payments: { data: Payment[]; links: PageLink[] };
-    filters: PaymentFilters;
-    statuses: string[];
-}>();
-
+const props = defineProps<{ payments: Paginator; filters: PaymentFilters; statuses: string[] }>();
+const { t, te, locale } = useI18n();
 const filters = ref<PaymentFilters>({ ...props.filters });
-const applyFilters = () => router.get('/admin/payments', { ...filters.value }, { preserveState: true, replace: true });
-const clearFilters = () => {
-    filters.value = { search: '', status: '', order_id: '' };
-    applyFilters();
-};
+const filtering = ref(false);
+const hasFilters = computed(() => Object.values(props.filters).some(Boolean));
+
+watch(() => props.filters, (value) => { filters.value = { ...value }; }, { deep: true });
+const query = () => Object.fromEntries(Object.entries(filters.value).filter(([, value]) => value !== ''));
+const applyFilters = () => router.get('/admin/payments', query(), { preserveState: true, replace: true, onStart: () => { filtering.value = true; }, onFinish: () => { filtering.value = false; } });
+const clearFilters = () => { filters.value = { search: '', status: '', order_id: '' }; applyFilters(); };
+const clearOrder = () => { filters.value.order_id = ''; applyFilters(); };
+const enumLabel = (group: string, value: string) => te(`payments.${group}.${value}`) ? t(`payments.${group}.${value}`) : value;
+const formatDate = (value: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+const formatDecimal = (value: string) => { const [integer, decimal = ''] = value.split('.'); return `${BigInt(integer).toLocaleString(locale.value)}${decimal ? `${locale.value.startsWith('es') ? ',' : '.'}${decimal}` : ''}`; };
+const money = (payment: Payment, amount: string) => `${payment.currency} ${formatDecimal(amount)}`;
 </script>
 
 <template>
-    <Head title="Payments" />
-    <AdminLayout><section>
-        <p class="font-mono text-xs tracking-[0.2em] text-emerald-800 uppercase">Financial operations</p>
-        <h1 class="mt-4 text-5xl font-semibold tracking-[-0.04em]">Payments</h1>
-        <form class="mt-8 grid gap-4 border border-[#17211b]/15 bg-white p-5 sm:grid-cols-[1fr_14rem_auto]" @submit.prevent="applyFilters">
-            <label class="grid gap-1.5 text-xs font-semibold uppercase">Search<input v-model="filters.search" class="min-w-0 border border-[#17211b]/25 bg-white px-3 py-2.5 text-sm font-normal normal-case" placeholder="Order number" /></label>
-            <label class="grid gap-1.5 text-xs font-semibold uppercase">Status<select v-model="filters.status" class="min-w-0 border border-[#17211b]/25 bg-white px-3 py-2.5 text-sm font-normal normal-case"><option value="">All statuses</option><option v-for="value in statuses" :key="value" :value="value">{{ value }}</option></select></label>
-            <div class="flex items-end gap-3"><button type="button" class="border border-[#17211b]/25 px-4 py-2.5 text-sm font-semibold" @click="clearFilters">Clear</button><button class="bg-[#17211b] px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900">Filter</button></div>
-        </form>
-        <p v-if="filters.order_id" class="mt-4 flex flex-wrap items-center gap-3 text-sm"><span class="border border-emerald-700 bg-emerald-50 px-3 py-1 font-mono">Order {{ filters.order_id.slice(0, 8) }}</span><button type="button" class="font-semibold text-emerald-800" @click="filters.order_id = ''; applyFilters()">Show all orders</button></p>
-        <div class="mt-8 overflow-x-auto border border-[#17211b]/15 bg-white"><table class="min-w-full text-left text-sm"><thead class="bg-[#17211b] text-white"><tr><th class="p-4">Order</th><th class="p-4">Method</th><th class="p-4">Status</th><th class="p-4">Amount</th><th class="p-4">Captured</th><th class="p-4">Reference</th><th class="p-4">Created</th></tr></thead><tbody><tr v-for="payment in payments.data" :key="payment.id" class="border-t"><td class="p-4"><Link :href="`/admin/payments/${payment.id}`" class="font-semibold text-emerald-800">{{ payment.order_number }}</Link></td><td class="p-4">{{ payment.method }}<br><span class="text-xs text-[#637067]">{{ payment.provider }}</span></td><td class="p-4 font-mono">{{ payment.status }}</td><td class="p-4 font-mono">{{ payment.currency }} {{ payment.amount }}</td><td class="p-4 font-mono">{{ payment.currency }} {{ payment.captured_amount }}</td><td class="p-4 font-mono">{{ payment.external_reference ?? '—' }}</td><td class="p-4">{{ new Date(payment.created_at).toLocaleString() }}</td></tr><tr v-if="!payments.data.length"><td colspan="7" class="p-8 text-center text-[#637067]">No payments recorded for this filter.</td></tr></tbody></table></div>
-        <nav class="mt-6 flex flex-wrap gap-2"><template v-for="link in payments.links" :key="link.label"><Link v-if="link.url" :href="link.url" preserve-state class="border px-3 py-2 text-sm" :class="link.active ? 'bg-[#17211b] text-white' : 'bg-white'" v-html="link.label" /><span v-else class="border border-[#17211b]/10 px-3 py-2 text-sm text-[#637067]" v-html="link.label" /></template></nav>
-    </section></AdminLayout>
+    <Head :title="t('payments.title')" />
+    <AdminLayout>
+        <section class="mx-auto grid w-full max-w-[90rem] gap-5 sm:gap-6">
+            <Breadcrumbs :items="[{ label: t('nav.sales') }, { label: t('payments.title') }]" />
+            <PageHeader :title="t('payments.title')" :eyebrow="t('common.currentStore')" :description="t('payments.description')" />
+
+            <form class="admin-card grid gap-3 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-[minmax(0,1fr)_14rem_auto]" role="search" @submit.prevent="applyFilters">
+                <label class="grid min-w-0 gap-1.5" for="payment-search"><span class="admin-label">{{ t('payments.search') }}</span><input id="payment-search" v-model="filters.search" type="search" autocomplete="off" :placeholder="t('payments.searchPlaceholder')" class="admin-control w-full px-3 text-sm" /></label>
+                <label class="grid gap-1.5" for="payment-status"><span class="admin-label">{{ t('common.status') }}</span><select id="payment-status" v-model="filters.status" class="admin-control w-full px-3 text-sm"><option value="">{{ t('payments.allStatuses') }}</option><option v-for="value in statuses" :key="value" :value="value">{{ te(`status.${value}`) ? t(`status.${value}`) : value }}</option></select></label>
+                <div class="flex items-end gap-2"><button type="submit" :disabled="filtering" class="min-h-9 flex-1 rounded-md bg-admin-primary px-4 text-sm font-semibold text-white disabled:opacity-60">{{ filtering ? t('common.searching') : t('payments.filter') }}</button><button v-if="hasFilters" type="button" :disabled="filtering" class="min-h-9 flex-1 rounded-md border border-admin-border-strong bg-white px-4 text-sm font-semibold" @click="clearFilters">{{ t('common.clear') }}</button></div>
+            </form>
+
+            <div v-if="filters.order_id" class="flex flex-wrap items-center gap-2 rounded-md border border-admin-info-border bg-admin-info-bg px-3 py-2 text-xs"><span>{{ t('payments.orderFilter', { id: filters.order_id.slice(0, 8) }) }}</span><button type="button" class="admin-link font-semibold" @click="clearOrder">{{ t('payments.showAllOrders') }}</button></div>
+
+            <template v-if="payments.data.length">
+                <div class="admin-card hidden overflow-hidden md:block"><table class="admin-table w-full table-fixed text-left text-xs"><thead><tr><th class="w-[15%] p-3">{{ t('payments.order') }}</th><th class="w-[15%] p-3">{{ t('payments.channel') }}</th><th class="w-[12%] p-3">{{ t('common.status') }}</th><th class="w-[14%] p-3 text-right">{{ t('payments.amount') }}</th><th class="w-[14%] p-3 text-right">{{ t('payments.captured') }}</th><th class="w-[14%] p-3">{{ t('payments.reference') }}</th><th class="w-[16%] p-3">{{ t('payments.created') }}</th></tr></thead><tbody class="divide-y divide-admin-border"><tr v-for="payment in payments.data" :key="payment.id"><td class="p-3"><Link :href="`/admin/payments/${payment.id}`" class="admin-link font-mono font-semibold">{{ payment.order_number }}</Link></td><td class="p-3"><p class="font-medium">{{ enumLabel('methods', payment.method) }}</p><p class="text-admin-neutral">{{ enumLabel('providers', payment.provider) }}</p></td><td class="p-3"><StatusBadge :status="payment.status" /></td><td class="p-3 text-right font-mono tabular-nums">{{ money(payment, payment.amount) }}</td><td class="p-3 text-right font-mono font-semibold tabular-nums">{{ money(payment, payment.captured_amount) }}</td><td class="truncate p-3 font-mono" :title="payment.external_reference ?? undefined">{{ payment.external_reference ?? t('common.none') }}</td><td class="p-3 text-admin-neutral">{{ formatDate(payment.created_at) }}</td></tr></tbody></table></div>
+                <div class="grid gap-2.5 md:hidden"><article v-for="payment in payments.data" :key="`mobile-${payment.id}`" class="admin-card p-3.5"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="admin-label">{{ t('payments.order') }}</p><Link :href="`/admin/payments/${payment.id}`" class="admin-link mt-1 block truncate font-mono text-sm font-semibold">{{ payment.order_number }}</Link><p class="mt-1 text-xs text-admin-neutral">{{ enumLabel('methods', payment.method) }} · {{ enumLabel('providers', payment.provider) }}</p></div><StatusBadge :status="payment.status" /></div><dl class="mt-3 grid grid-cols-2 gap-3 border-y border-admin-border py-2.5"><div><dt class="admin-label">{{ t('payments.amount') }}</dt><dd class="mt-1 font-mono text-xs">{{ money(payment, payment.amount) }}</dd></div><div><dt class="admin-label">{{ t('payments.captured') }}</dt><dd class="mt-1 font-mono text-xs font-semibold">{{ money(payment, payment.captured_amount) }}</dd></div><div><dt class="admin-label">{{ t('payments.reference') }}</dt><dd class="mt-1 truncate font-mono text-xs">{{ payment.external_reference ?? t('common.none') }}</dd></div><div><dt class="admin-label">{{ t('payments.created') }}</dt><dd class="mt-1 text-xs text-admin-neutral">{{ formatDate(payment.created_at) }}</dd></div></dl><div class="mt-3 text-right"><Link :href="`/admin/payments/${payment.id}`" class="admin-link text-xs">{{ t('payments.openPayment') }}</Link></div></article></div>
+            </template>
+            <EmptyState v-else :title="hasFilters ? t('payments.noMatch') : t('payments.empty')" :description="hasFilters ? t('payments.noMatchHelp') : t('payments.emptyHelp')"><template v-if="hasFilters" #actions><button type="button" class="admin-link text-sm" @click="clearFilters">{{ t('payments.clearFilters') }}</button></template></EmptyState>
+            <Pagination :links="payments.links" :from="payments.from" :to="payments.to" :total="payments.total" preserve-state />
+        </section>
+    </AdminLayout>
 </template>

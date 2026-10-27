@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.vue';
+import EmptyState from '../../../components/admin/EmptyState.vue';
+import PageHeader from '../../../components/admin/PageHeader.vue';
+import Pagination from '../../../components/admin/Pagination.vue';
 import AdminLayout from '../../../layouts/AdminLayout.vue';
 
 interface NotificationRow {
@@ -16,28 +21,9 @@ interface NotificationRow {
     created_at: string;
 }
 
-interface PageLink {
-    url: string | null;
-    label: string;
-    active: boolean;
-}
-
-interface Paginator<T> {
-    data: T[];
-    links: PageLink[];
-    from: number | null;
-    to: number | null;
-    total: number;
-    per_page: number;
-}
-
-interface NotificationFilters {
-    unread: boolean;
-    active: boolean;
-    resolved: boolean;
-    severity: string;
-    type: string;
-}
+interface PageLink { url: string | null; label: string; active: boolean }
+interface Paginator<T> { data: T[]; links: PageLink[]; from: number | null; to: number | null; total: number; per_page: number }
+interface NotificationFilters { unread: boolean; active: boolean; resolved: boolean; severity: string; type: string }
 
 const props = defineProps<{
     notifications: Paginator<NotificationRow>;
@@ -46,128 +32,117 @@ const props = defineProps<{
     severities: string[];
 }>();
 
+const { t, te, locale } = useI18n();
 const filters = ref<NotificationFilters>({ ...props.filters });
+const filtering = ref(false);
 const pendingAction = ref<string | null>(null);
+const hasFilters = computed(() => Object.values(props.filters).some(Boolean));
 
-const severityLabels: Record<string, string> = {
-    info: 'Información',
-    success: 'Correcto',
-    warning: 'Advertencia',
-    error: 'Error',
-    critical: 'Crítica',
-};
+watch(() => props.filters, (value) => { filters.value = { ...value }; }, { deep: true });
 
-const severityLabel = (severity: string) => severityLabels[severity.toLowerCase()] ?? severity.replaceAll('_', ' ');
-const typeLabel = (type: string) => type.replaceAll('_', ' ');
-const formatDate = (value: string) => new Date(value).toLocaleString('es');
+const enumLabel = (group: 'types' | 'severities', value: string) => te(`notifications.${group}.${value}`)
+    ? t(`notifications.${group}.${value}`)
+    : value.replaceAll('_', ' ');
+const formatDate = (value: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 const isActive = (notification: NotificationRow) => !notification.resolved_at && !notification.dismissed_at;
+const state = (notification: NotificationRow) => notification.resolved_at ? 'resolved' : notification.dismissed_at ? 'dismissed' : 'active';
+const query = () => Object.fromEntries(Object.entries(filters.value).filter(([, value]) => value !== '' && value !== false));
 
-const severityClass = (severity: string) => {
-    const value = severity.toLowerCase();
-    if (value === 'critical' || value === 'error') return 'border-l-red-700';
-    if (value === 'warning') return 'border-l-amber-500';
-    if (value === 'success') return 'border-l-emerald-700';
-    return 'border-l-sky-700';
+const severityTone = (severity: string) => {
+    if (severity === 'CRITICAL') return 'border-admin-danger-border bg-admin-danger-bg text-admin-danger';
+    if (severity === 'WARNING') return 'border-admin-warning-border bg-admin-warning-bg text-amber-700';
+    return 'border-admin-info-border bg-admin-info-bg text-admin-info';
+};
+const stateTone = (value: string) => {
+    if (value === 'resolved') return 'border-admin-success-border bg-admin-success-bg text-admin-success';
+    if (value === 'dismissed') return 'border-admin-border bg-slate-50 text-admin-neutral';
+    return 'border-admin-warning-border bg-admin-warning-bg text-amber-700';
 };
 
-const applyFilters = () => {
-    router.get('/admin/notifications', { ...filters.value }, { preserveState: true, replace: true });
+const applyFilters = () => router.get('/admin/notifications', query(), {
+    preserveState: true,
+    replace: true,
+    onStart: () => { filtering.value = true; },
+    onFinish: () => { filtering.value = false; },
+});
+const clearFilters = () => {
+    filters.value = { unread: false, active: false, resolved: false, severity: '', type: '' };
+    applyFilters();
 };
-
 const mutate = (key: string, url: string) => {
+    if (pendingAction.value !== null) return;
     pendingAction.value = key;
-    router.post(url, {}, {
-        preserveScroll: true,
-        onFinish: () => pendingAction.value = null,
-    });
+    router.post(url, {}, { preserveScroll: true, onFinish: () => { pendingAction.value = null; } });
 };
-
 const markRead = (id: string) => mutate(`read:${id}`, `/admin/notifications/${id}/read`);
-const dismiss = (id: string) => mutate(`dismiss:${id}`, `/admin/notifications/${id}/dismiss`);
-const markAllRead = () => mutate('read-all', '/admin/notifications/read-all');
+const dismiss = (notification: NotificationRow) => {
+    if (window.confirm(t('notifications.dismissConfirm'))) mutate(`dismiss:${notification.id}`, `/admin/notifications/${notification.id}/dismiss`);
+};
+const markAllRead = () => {
+    if (window.confirm(t('notifications.readAllConfirm'))) mutate('read-all', '/admin/notifications/read-all');
+};
 </script>
 
 <template>
-    <Head title="Notificaciones" />
-
+    <Head :title="t('notifications.title')" />
     <AdminLayout>
-        <section>
-            <p class="font-mono text-xs tracking-[0.2em] text-emerald-800 uppercase">Centro de avisos</p>
-            <div class="mt-4 flex flex-wrap items-end justify-between gap-5 border-b border-[#17211b]/15 pb-8">
-                <div>
-                    <h1 class="text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">Notificaciones</h1>
-                    <p class="mt-3 max-w-2xl text-[#637067]">Alertas operativas y tareas que requieren tu atención.</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-3">
-                    <Link href="/admin/settings/notifications" class="border border-[#17211b]/25 bg-white px-4 py-3 text-sm font-semibold">Preferencias</Link>
-                    <button type="button" :disabled="pendingAction === 'read-all'" class="border border-[#17211b] bg-white px-4 py-3 text-sm font-semibold disabled:opacity-50" @click="markAllRead">
-                        {{ pendingAction === 'read-all' ? 'Marcando…' : 'Marcar todas como leídas' }}
-                    </button>
-                </div>
-            </div>
+        <section class="mx-auto grid w-full max-w-[90rem] gap-5 sm:gap-6">
+            <Breadcrumbs :items="[{ label: t('nav.overview'), href: '/admin/dashboard' }, { label: t('notifications.title') }]" />
+            <PageHeader :title="t('notifications.title')" :eyebrow="t('notifications.personalInbox')" :description="t('notifications.description')">
+                <template #actions>
+                    <div class="grid gap-2 sm:flex">
+                        <Link href="/admin/settings/notifications" class="inline-flex min-h-9 items-center justify-center rounded-md border border-admin-border-strong bg-white px-4 text-sm font-semibold hover:bg-slate-50">{{ t('notifications.preferences') }}</Link>
+                        <button type="button" :disabled="pendingAction !== null" class="min-h-9 rounded-md bg-admin-primary px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" @click="markAllRead">
+                            {{ pendingAction === 'read-all' ? t('notifications.markingAllRead') : t('notifications.markAllRead') }}
+                        </button>
+                    </div>
+                </template>
+            </PageHeader>
 
-            <form class="mt-8 grid gap-5 border border-[#17211b]/15 bg-white p-5 lg:grid-cols-[1fr_1fr_auto] lg:items-end" @submit.prevent="applyFilters">
-                <div class="grid gap-3 sm:grid-cols-3">
-                    <label class="flex items-center gap-2 text-sm font-semibold"><input v-model="filters.unread" type="checkbox" class="size-4 accent-emerald-800" /> No leídas</label>
-                    <label class="flex items-center gap-2 text-sm font-semibold"><input v-model="filters.active" type="checkbox" class="size-4 accent-emerald-800" /> Activas</label>
-                    <label class="flex items-center gap-2 text-sm font-semibold"><input v-model="filters.resolved" type="checkbox" class="size-4 accent-emerald-800" /> Resueltas</label>
-                </div>
+            <form class="admin-card grid gap-4 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,1fr)_auto] lg:items-end" role="search" @submit.prevent="applyFilters">
+                <fieldset class="grid gap-2 sm:grid-cols-3">
+                    <legend class="admin-label mb-2">{{ t('notifications.visibility') }}</legend>
+                    <label class="flex min-h-9 items-center gap-2 rounded-md border border-admin-border px-3 text-sm"><input v-model="filters.unread" type="checkbox" class="size-4 accent-admin-secondary" />{{ t('notifications.unread') }}</label>
+                    <label class="flex min-h-9 items-center gap-2 rounded-md border border-admin-border px-3 text-sm"><input v-model="filters.active" type="checkbox" class="size-4 accent-admin-secondary" />{{ t('notifications.active') }}</label>
+                    <label class="flex min-h-9 items-center gap-2 rounded-md border border-admin-border px-3 text-sm"><input v-model="filters.resolved" type="checkbox" class="size-4 accent-admin-secondary" />{{ t('notifications.resolved') }}</label>
+                </fieldset>
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <label class="grid gap-1.5 text-xs font-semibold uppercase">
-                        Severidad
-                        <select v-model="filters.severity" class="border border-[#17211b]/25 bg-white px-3 py-2.5 text-sm font-normal normal-case outline-none focus:border-emerald-700">
-                            <option value="">Todas</option>
-                            <option v-for="severity in severities" :key="severity" :value="severity">{{ severityLabel(severity) }}</option>
-                        </select>
-                    </label>
-                    <label class="grid gap-1.5 text-xs font-semibold uppercase">
-                        Tipo
-                        <select v-model="filters.type" class="border border-[#17211b]/25 bg-white px-3 py-2.5 text-sm font-normal normal-case outline-none focus:border-emerald-700">
-                            <option value="">Todos</option>
-                            <option v-for="type in types" :key="type" :value="type">{{ typeLabel(type) }}</option>
-                        </select>
-                    </label>
+                    <label class="grid gap-1.5" for="notification-severity"><span class="admin-label">{{ t('notifications.severity') }}</span><select id="notification-severity" v-model="filters.severity" class="admin-control w-full px-3 text-sm"><option value="">{{ t('notifications.allSeverities') }}</option><option v-for="severity in severities" :key="severity" :value="severity">{{ enumLabel('severities', severity) }}</option></select></label>
+                    <label class="grid gap-1.5" for="notification-type"><span class="admin-label">{{ t('notifications.type') }}</span><select id="notification-type" v-model="filters.type" class="admin-control w-full px-3 text-sm"><option value="">{{ t('notifications.allTypes') }}</option><option v-for="type in types" :key="type" :value="type">{{ enumLabel('types', type) }}</option></select></label>
                 </div>
-                <button class="bg-[#17211b] px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900">Aplicar filtros</button>
+                <div class="flex gap-2">
+                    <button type="submit" :disabled="filtering" class="min-h-9 flex-1 rounded-md bg-admin-primary px-4 text-sm font-semibold text-white disabled:opacity-60">{{ filtering ? t('common.loading') : t('notifications.applyFilters') }}</button>
+                    <button v-if="hasFilters" type="button" :disabled="filtering" class="min-h-9 flex-1 rounded-md border border-admin-border-strong bg-white px-4 text-sm font-semibold" @click="clearFilters">{{ t('common.clear') }}</button>
+                </div>
             </form>
 
-            <div v-if="notifications.data.length" class="mt-8 space-y-4">
-                <article v-for="notification in notifications.data" :key="notification.id" class="border border-l-4 border-[#17211b]/15 bg-white p-5 sm:p-6" :class="[severityClass(notification.severity), !notification.read_at ? 'shadow-[inset_0_0_0_1px_rgba(6,95,70,0.15)]' : 'opacity-85']">
-                    <div class="grid gap-5 sm:grid-cols-[1fr_auto]">
+            <div class="sr-only" aria-live="polite">{{ pendingAction ? t('notifications.processingAction') : '' }}</div>
+            <div v-if="notifications.data.length" class="grid gap-2.5">
+                <article v-for="notification in notifications.data" :key="notification.id" class="admin-card min-w-0 p-4 sm:p-5" :class="{ 'border-admin-border-strong shadow-sm': !notification.read_at }">
+                    <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
                         <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">{{ severityLabel(notification.severity) }}</span>
-                                <span class="text-[#17211b]/25">/</span>
-                                <span class="text-xs text-[#637067] capitalize">{{ typeLabel(notification.type) }}</span>
-                                <span v-if="!notification.read_at" class="bg-[#d8f36a] px-2 py-1 text-[10px] font-semibold tracking-wide uppercase">Nueva</span>
-                                <span v-if="notification.resolved_at" class="bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-900 uppercase">Resuelta</span>
-                                <span v-else-if="notification.dismissed_at" class="bg-[#17211b]/10 px-2 py-1 text-[10px] font-semibold uppercase">Descartada</span>
-                                <span v-else class="bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-900 uppercase">Activa</span>
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <span class="rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium" :class="severityTone(notification.severity)">{{ enumLabel('severities', notification.severity) }}</span>
+                                <span class="rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium" :class="stateTone(state(notification))">{{ t(`notifications.states.${state(notification)}`) }}</span>
+                                <span v-if="!notification.read_at" class="rounded border border-admin-info-border bg-admin-info-bg px-1.5 py-0.5 font-mono text-[10px] font-medium text-admin-info">{{ t('notifications.new') }}</span>
+                                <span class="min-w-0 truncate text-[11px] font-medium text-admin-neutral" :title="enumLabel('types', notification.type)">{{ enumLabel('types', notification.type) }}</span>
                             </div>
-                            <h2 class="mt-3 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">{{ notification.title }}</h2>
-                            <p class="mt-2 max-w-3xl text-sm leading-6 text-[#516057]">{{ notification.message }}</p>
-                            <time class="mt-4 block text-xs text-[#637067]">{{ formatDate(notification.created_at) }}</time>
+                            <h2 class="mt-2 break-words text-base font-semibold text-admin-primary">{{ notification.title }}</h2>
+                            <p class="mt-1 break-words text-sm leading-5 text-admin-text-secondary">{{ notification.message }}</p>
+                            <time class="mt-3 block text-[11px] text-admin-neutral" :datetime="notification.created_at">{{ formatDate(notification.created_at) }}</time>
                         </div>
-                        <div class="flex flex-wrap items-start gap-2 sm:max-w-48 sm:justify-end">
-                            <Link v-if="notification.action_url" :href="notification.action_url" class="bg-[#17211b] px-4 py-2.5 text-sm font-semibold text-white">Ver detalle</Link>
-                            <button v-if="!notification.read_at" type="button" :disabled="pendingAction !== null" class="border border-[#17211b]/25 px-4 py-2.5 text-sm font-semibold disabled:opacity-50" @click="markRead(notification.id)">Marcar leída</button>
-                            <button v-if="isActive(notification)" type="button" :disabled="pendingAction !== null" class="px-4 py-2.5 text-sm font-semibold text-[#637067] underline disabled:opacity-50" @click="dismiss(notification.id)">Descartar</button>
+                        <div class="grid grid-cols-2 gap-2 sm:flex md:max-w-72 md:flex-wrap md:justify-end">
+                            <Link v-if="notification.action_url" :href="notification.action_url" class="col-span-2 inline-flex min-h-9 items-center justify-center rounded-md bg-admin-primary px-3 text-xs font-semibold text-white sm:col-span-1">{{ t('notifications.openDetail') }}</Link>
+                            <button v-if="!notification.read_at" type="button" :disabled="pendingAction !== null" class="min-h-9 rounded-md border border-admin-border-strong bg-white px-3 text-xs font-semibold disabled:opacity-60" @click="markRead(notification.id)">{{ pendingAction === `read:${notification.id}` ? t('notifications.markingRead') : t('notifications.markRead') }}</button>
+                            <button v-if="isActive(notification)" type="button" :disabled="pendingAction !== null" class="min-h-9 rounded-md border border-admin-border bg-white px-3 text-xs font-semibold text-admin-text-secondary disabled:opacity-60" @click="dismiss(notification)">{{ pendingAction === `dismiss:${notification.id}` ? t('notifications.dismissing') : t('notifications.dismiss') }}</button>
                         </div>
                     </div>
                 </article>
             </div>
-
-            <div v-else class="mt-8 border border-[#17211b]/15 bg-white p-10 text-center text-[#637067]">No tienes notificaciones pendientes.</div>
-
-            <div v-if="notifications.data.length" class="mt-6 flex flex-wrap items-center justify-between gap-4">
-                <p class="text-sm text-[#637067]">{{ notifications.from }}–{{ notifications.to }} de {{ notifications.total }} · 25 por página</p>
-                <nav class="flex flex-wrap gap-2" aria-label="Paginación de notificaciones">
-                    <template v-for="link in notifications.links" :key="link.label">
-                        <Link v-if="link.url" :href="link.url" preserve-state class="border px-3 py-2 text-sm" :class="link.active ? 'border-[#17211b] bg-[#17211b] text-white' : 'border-[#17211b]/20 bg-white'" v-html="link.label" />
-                        <span v-else class="border border-[#17211b]/10 px-3 py-2 text-sm text-[#637067]" v-html="link.label" />
-                    </template>
-                </nav>
-            </div>
+            <EmptyState v-else :title="hasFilters ? t('notifications.noMatch') : t('notifications.empty')" :description="hasFilters ? t('notifications.noMatchHelp') : t('notifications.emptyHelp')">
+                <template v-if="hasFilters" #actions><button type="button" class="admin-link text-sm" @click="clearFilters">{{ t('notifications.clearFilters') }}</button></template>
+            </EmptyState>
+            <Pagination :links="notifications.links" :from="notifications.from" :to="notifications.to" :total="notifications.total" preserve-state />
         </section>
     </AdminLayout>
 </template>

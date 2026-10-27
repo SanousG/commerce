@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.vue';
+import EmptyState from '../../../components/admin/EmptyState.vue';
+import PageHeader from '../../../components/admin/PageHeader.vue';
+import StatusBadge from '../../../components/admin/StatusBadge.vue';
 import AdminLayout from '../../../layouts/AdminLayout.vue';
 import type { PageProps } from '../../../types';
 
@@ -15,55 +20,83 @@ interface StoreOption {
     selected: boolean;
 }
 
-defineProps<{
-    stores: StoreOption[];
-}>();
+defineProps<{ stores: StoreOption[] }>();
 
 const page = usePage<PageProps>();
-const canCreateStore = computed(() => page.props.currentTenantMembership?.permissions.includes('stores.create') ?? false);
-const canUpdateStore = computed(() => page.props.currentTenantMembership?.permissions.includes('stores.update') ?? false);
-const canSelectStore = computed(() => page.props.currentTenantMembership?.permissions.includes('stores.select') ?? false);
+const { t } = useI18n();
+const selectingStore = ref<string | null>(null);
+const permissions = computed(() => page.props.currentTenantMembership?.permissions ?? []);
+const canCreateStore = computed(() => permissions.value.includes('stores.create'));
+const canUpdateStore = computed(() => permissions.value.includes('stores.update'));
+const canSelectStore = computed(() => permissions.value.includes('stores.select'));
+const statusMessage = computed(() => {
+    const status = page.props.status;
+    if (!status) return null;
+
+    return status === 'Store settings updated.' ? t('stores.flash.updated') : status;
+});
+
+const selectStore = (store: StoreOption) => {
+    if (selectingStore.value !== null || store.status !== 'ACTIVE' || !canSelectStore.value) return;
+    selectingStore.value = store.id;
+    router.post(`/admin/stores/${store.id}/select`, {}, {
+        onFinish: () => { selectingStore.value = null; },
+    });
+};
 </script>
 
 <template>
-    <Head title="Stores" />
+    <Head :title="t('stores.title')" />
 
     <AdminLayout>
-        <section>
-            <div class="flex flex-wrap items-end justify-between gap-5">
-                <div>
-                    <p class="font-mono text-xs tracking-[0.2em] text-emerald-800 uppercase">Company stores</p>
-                    <h1 class="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">Choose a store.</h1>
-                </div>
-                <Link v-if="canCreateStore" href="/admin/stores/create" class="bg-[#17211b] px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-900">
-                    Create store
-                </Link>
-            </div>
+        <section class="mx-auto grid w-full max-w-6xl gap-5 sm:gap-6">
+            <Breadcrumbs :items="[{ label: t('stores.title') }]" />
+            <PageHeader :title="t('stores.title')" :eyebrow="t('stores.eyebrow')" :description="t('stores.description')">
+                <template v-if="canCreateStore" #actions>
+                    <Link href="/admin/stores/create" class="inline-flex min-h-9 w-full items-center justify-center rounded-md bg-admin-primary px-4 text-sm font-semibold text-white sm:w-auto">{{ t('stores.create') }}</Link>
+                </template>
+            </PageHeader>
 
-            <p v-if="page.props.status" class="mt-6 border border-emerald-800/25 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">{{ page.props.status }}</p>
+            <p v-if="statusMessage" role="status" class="rounded-md border border-admin-success-border bg-admin-success-bg px-4 py-3 text-sm font-medium text-admin-success">{{ statusMessage }}</p>
 
-            <div v-if="stores.length" class="mt-10 grid gap-4 sm:grid-cols-2">
-                <article v-for="store in stores" :key="store.id" class="flex min-h-56 flex-col justify-between border p-6" :class="store.selected ? 'border-emerald-700 bg-emerald-50' : 'border-[#17211b]/15 bg-[#f8f5ed]'">
-                    <div>
-                        <div class="flex items-center justify-between gap-4">
-                            <p class="font-mono text-xs tracking-[0.18em] text-[#637067] uppercase">{{ store.status }}</p>
-                            <span v-if="store.selected" class="bg-emerald-800 px-2 py-1 text-xs font-semibold text-white uppercase">Current</span>
+            <div v-if="stores.length" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <article v-for="store in stores" :key="store.id" class="admin-card flex min-w-0 flex-col p-4 sm:p-5" :class="store.selected ? 'ring-2 ring-admin-secondary/40' : ''">
+                    <div class="flex min-w-0 items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="admin-label">{{ t('stores.store') }}</p>
+                            <h2 class="mt-1.5 break-words text-lg font-semibold text-admin-primary">{{ store.name }}</h2>
+                            <p class="mt-1 break-all font-mono text-[11px] text-admin-neutral">{{ store.slug }}</p>
                         </div>
-                        <h2 class="mt-3 break-words text-2xl font-semibold tracking-[-0.03em]">{{ store.name }}</h2>
-                        <p class="mt-2 text-sm text-[#637067]">{{ store.slug }}</p>
-                        <p class="mt-5 text-sm text-[#516057]">{{ store.currency }} / {{ store.timezone }} / {{ store.locale }}</p>
+                        <div class="grid shrink-0 justify-items-end gap-1.5">
+                            <StatusBadge :status="store.status" />
+                            <span v-if="store.selected" class="rounded bg-admin-primary px-1.5 py-0.5 text-[10px] font-semibold text-white">{{ t('common.currentStore') }}</span>
+                        </div>
                     </div>
-                    <div v-if="(canSelectStore && store.status === 'ACTIVE') || canUpdateStore" class="mt-8 grid gap-2 sm:grid-cols-2">
-                        <Link v-if="canSelectStore && store.status === 'ACTIVE'" :href="`/admin/stores/${store.id}/select`" method="post" as="button" class="border border-[#17211b] px-4 py-3 text-center text-sm font-semibold transition hover:bg-[#17211b] hover:text-white">{{ store.selected ? 'Enter current store' : 'Enter store' }}</Link>
-                        <Link v-if="canUpdateStore && store.status !== 'ARCHIVED'" :href="`/admin/stores/${store.id}/edit`" class="border border-[#17211b]/25 px-4 py-3 text-center text-sm font-semibold hover:border-[#17211b]">Edit lifecycle</Link>
-                        <Link :href="`/admin/stores/${store.id}/settings`" class="border border-[#17211b]/25 px-4 py-3 text-center text-sm font-semibold hover:border-[#17211b]">Store settings</Link>
+
+                    <dl class="mt-4 grid grid-cols-2 gap-x-3 gap-y-3 border-t border-admin-border pt-4 text-xs">
+                        <div><dt class="admin-label">{{ t('stores.currency') }}</dt><dd class="mt-1 font-mono text-admin-text-secondary">{{ store.currency }}</dd></div>
+                        <div><dt class="admin-label">{{ t('stores.locale') }}</dt><dd class="mt-1 font-mono text-admin-text-secondary">{{ store.locale }}</dd></div>
+                        <div class="col-span-2"><dt class="admin-label">{{ t('stores.timezone') }}</dt><dd class="mt-1 break-all font-mono text-admin-text-secondary">{{ store.timezone }}</dd></div>
+                    </dl>
+
+                    <div class="mt-auto grid gap-2 border-t border-admin-border pt-4 sm:grid-cols-2">
+                        <button v-if="canSelectStore && store.status === 'ACTIVE'" type="button" :disabled="selectingStore !== null" class="min-h-9 rounded-md bg-admin-primary px-3 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60 sm:col-span-2" @click="selectStore(store)">
+                            {{ selectingStore === store.id ? t('stores.selecting') : (store.selected ? t('stores.enterCurrent') : t('stores.select')) }}
+                        </button>
+                        <Link :href="`/admin/stores/${store.id}/settings`" class="inline-flex min-h-9 items-center justify-center rounded-md border border-admin-border-strong bg-white px-3 text-sm font-semibold text-admin-text-secondary">{{ t('stores.openSettings') }}</Link>
+                        <Link v-if="canUpdateStore && store.status !== 'ARCHIVED'" :href="`/admin/stores/${store.id}/edit`" class="inline-flex min-h-9 items-center justify-center rounded-md border border-admin-border-strong bg-white px-3 text-sm font-semibold text-admin-text-secondary">{{ t('stores.edit') }}</Link>
                     </div>
-                    <p v-else class="mt-8 border border-[#17211b]/15 px-4 py-3 text-center text-sm text-[#637067]">Unavailable</p>
+                    <p v-if="store.status !== 'ACTIVE'" class="mt-3 text-xs leading-5 text-admin-neutral">{{ t('stores.inactiveSelectionHelp') }}</p>
                 </article>
             </div>
 
-            <div v-else class="mt-10 border border-dashed border-[#17211b]/25 p-8 text-[#516057]">
-                This company has no stores yet.
+            <EmptyState v-else :title="t('stores.empty')" :description="canCreateStore ? t('stores.emptyHelp') : t('stores.emptyReadOnlyHelp')">
+                <template v-if="canCreateStore" #actions><Link href="/admin/stores/create" class="inline-flex min-h-9 items-center rounded-md bg-admin-primary px-4 text-sm font-semibold text-white">{{ t('stores.create') }}</Link></template>
+            </EmptyState>
+
+            <div class="rounded-md border border-admin-info-border bg-admin-info-bg px-4 py-3 text-xs leading-5 text-admin-info">
+                <p class="font-semibold">{{ t('stores.contextTitle') }}</p>
+                <p class="mt-0.5">{{ t('stores.contextHelp') }}</p>
             </div>
         </section>
     </AdminLayout>

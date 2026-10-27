@@ -1,187 +1,59 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.vue';
+import EmptyState from '../../../components/admin/EmptyState.vue';
+import PageHeader from '../../../components/admin/PageHeader.vue';
+import Pagination from '../../../components/admin/Pagination.vue';
+import StatusBadge from '../../../components/admin/StatusBadge.vue';
+import StatusNotice from '../../../components/StatusNotice.vue';
 import AdminLayout from '../../../layouts/AdminLayout.vue';
 import type { PageProps } from '../../../types';
 
-interface Customer {
-    id: string;
-    first_name: string | null;
-    last_name: string | null;
-    display_name: string;
-    email: string | null;
-    phone: string | null;
-    status: string;
-    notes: string | null;
-    addresses_count: number;
-    created_at: string | null;
-    updated_at: string | null;
-}
-
-interface Address {
-    id: string;
-    label: string | null;
-    recipient_name: string | null;
-    phone: string | null;
-    country_code: string;
-    region: string | null;
-    city: string;
-    district: string | null;
-    address_line_1: string;
-    address_line_2: string | null;
-    postal_code: string | null;
-    reference: string | null;
-    is_default_shipping: boolean;
-    is_default_billing: boolean;
-}
-
-interface OrderRow {
-    id: string;
-    order_number: string;
-    status: string;
-    payment_status: string;
-    fulfillment_status: string;
-    currency: string;
-    grand_total: string;
-    placed_at: string;
-    openable: boolean;
-}
-
+interface Customer { id: string; display_name: string; email: string | null; phone: string | null; status: string; notes: string | null; addresses_count: number; created_at: string | null; updated_at: string | null }
+interface Address { id: string; label: string | null; recipient_name: string | null; phone: string | null; country_code: string; region: string | null; city: string; district: string | null; address_line_1: string; address_line_2: string | null; postal_code: string | null; reference: string | null; is_default_shipping: boolean; is_default_billing: boolean }
+interface OrderRow { id: string; order_number: string; status: string; payment_status: string; fulfillment_status: string; currency: string; grand_total: string; placed_at: string; openable: boolean }
 interface PageLink { url: string | null; label: string; active: boolean }
+interface Paginator<T> { data: T[]; links: PageLink[]; from: number | null; to: number | null; total: number }
 
-interface Paginator<T> {
-    data: T[];
-    links: PageLink[];
-    from: number | null;
-    to: number | null;
-    total: number;
-}
-
-const props = defineProps<{
-    customer: Customer;
-    addresses: Address[];
-    orderHistory: Paginator<OrderRow> | null;
-    ordersInOtherStores: number;
-    currentStore: { id: string; name: string } | null;
-    capabilities: { update: boolean; archive: boolean; view_orders: boolean };
-}>();
-
+const props = defineProps<{ customer: Customer; addresses: Address[]; orderHistory: Paginator<OrderRow> | null; ordersInOtherStores: number; currentStore: { id: string; name: string } | null; capabilities: { update: boolean; archive: boolean; view_orders: boolean } }>();
 const page = usePage<PageProps>();
-const status = computed(() => page.props.status);
-const archive = () => {
-    if (window.confirm(`Archive ${props.customer.display_name}?`)) router.post(`/admin/customers/${props.customer.id}/archive`);
-};
-const addressLines = (address: Address): string[] => [
-    address.recipient_name,
-    address.phone,
-    address.address_line_1,
-    address.address_line_2,
-    [address.district, address.city, address.region].filter(Boolean).join(', '),
-    [address.country_code, address.postal_code].filter(Boolean).join(' '),
-    address.reference,
-].filter((line): line is string => Boolean(line));
+const { t, locale } = useI18n();
+const archiveForm = useForm({});
+const localizedStatus = computed(() => {
+    const keys: Record<string, string> = { 'Customer created.': 'customers.notices.created', 'Customer archived.': 'customers.notices.archived' };
+    return page.props.status ? t(keys[page.props.status] ?? 'customers.notices.completed') : undefined;
+});
+const archive = () => { if (!archiveForm.processing && window.confirm(t('customers.archiveConfirm', { name: props.customer.display_name }))) archiveForm.post(`/admin/customers/${props.customer.id}/archive`); };
+const addressLines = (address: Address): string[] => [address.recipient_name, address.phone, address.address_line_1, address.address_line_2, [address.district, address.city, address.region].filter(Boolean).join(', '), [address.country_code, address.postal_code].filter(Boolean).join(' '), address.reference].filter((line): line is string => Boolean(line));
+const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '—';
+const formatMoney = (order: OrderRow) => { const amount = Number(order.grand_total); return Number.isFinite(amount) ? new Intl.NumberFormat(locale.value, { style: 'currency', currency: order.currency }).format(amount) : `${order.currency} ${order.grand_total}`; };
 </script>
 
 <template>
     <Head :title="customer.display_name" />
     <AdminLayout>
-        <section>
-            <div class="flex flex-wrap items-end justify-between gap-5">
-                <div>
-                    <p class="font-mono text-xs tracking-[0.2em] text-emerald-800 uppercase">Customer record / {{ customer.status }}</p>
-                    <h1 class="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">{{ customer.display_name }}.</h1>
-                </div>
-                <div class="flex flex-wrap gap-4">
-                    <Link v-if="capabilities.update" :href="`/admin/customers/${customer.id}/edit`" class="border border-[#17211b] px-4 py-3 text-sm font-semibold">Edit</Link>
-                    <button v-if="capabilities.archive && customer.status !== 'ARCHIVED'" class="border border-red-800/30 px-4 py-3 text-sm font-semibold text-red-800" @click="archive">Archive</button>
-                    <Link href="/admin/customers" class="py-3 text-sm font-semibold text-emerald-800">Back to customers</Link>
-                </div>
-            </div>
-            <p v-if="status" class="mt-6 border border-emerald-800/20 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{{ status }}</p>
-            <p v-if="!capabilities.update" class="mt-6 border border-amber-800/20 bg-amber-50 px-4 py-3 text-sm text-amber-900">You have view-only access to this customer.</p>
+        <section class="mx-auto grid w-full max-w-[90rem] gap-5 sm:gap-6">
+            <Breadcrumbs :items="[{ label: t('nav.sales') }, { label: t('customers.title'), href: '/admin/customers' }, { label: customer.display_name }]" />
+            <PageHeader :title="customer.display_name" :eyebrow="t('common.allCompany')" :description="t('customers.showDescription')"><template #actions><div class="flex flex-wrap gap-2"><Link v-if="capabilities.update" :href="`/admin/customers/${customer.id}/edit`" class="inline-flex min-h-9 items-center justify-center rounded-md bg-admin-primary px-4 text-sm font-semibold text-white">{{ t('common.edit') }}</Link><button v-if="capabilities.archive && customer.status !== 'ARCHIVED'" type="button" :disabled="archiveForm.processing" class="min-h-9 rounded-md border border-admin-danger-border bg-white px-4 text-sm font-semibold text-admin-danger disabled:opacity-60" @click="archive">{{ archiveForm.processing ? t('common.archiving') : t('common.archive') }}</button><Link href="/admin/customers" class="inline-flex min-h-9 items-center justify-center rounded-md border border-admin-border-strong bg-white px-4 text-sm font-semibold text-admin-text-secondary">{{ t('customers.back') }}</Link></div></template></PageHeader>
+            <StatusNotice :message="localizedStatus" class="!mb-0 rounded-md !border-admin-success !bg-admin-success-bg !text-admin-success" />
+            <aside v-if="!capabilities.update" class="rounded-md border border-admin-warning-border bg-admin-warning-bg px-4 py-3"><p class="text-sm font-semibold text-admin-text">{{ t('customers.readOnlyTitle') }}</p><p class="mt-0.5 text-xs text-admin-text-secondary">{{ t('customers.readOnlyHelp') }}</p></aside>
 
-            <div class="mt-8 grid gap-5 lg:grid-cols-3">
-                <article class="border border-[#17211b]/15 bg-white p-5">
-                    <h2 class="text-xl font-semibold">Contact</h2>
-                    <dl class="mt-4 grid gap-3 text-sm">
-                        <div><dt class="text-[#637067]">Email</dt><dd>{{ customer.email ?? 'None' }}</dd></div>
-                        <div><dt class="text-[#637067]">Phone</dt><dd>{{ customer.phone ?? 'None' }}</dd></div>
-                        <div><dt class="text-[#637067]">Status</dt><dd>{{ customer.status }}</dd></div>
-                    </dl>
-                </article>
-                <article class="border border-[#17211b]/15 bg-white p-5">
-                    <h2 class="text-xl font-semibold">Record</h2>
-                    <dl class="mt-4 grid gap-3 text-sm">
-                        <div><dt class="text-[#637067]">Created</dt><dd>{{ customer.created_at ? new Date(customer.created_at).toLocaleString() : '—' }}</dd></div>
-                        <div><dt class="text-[#637067]">Updated</dt><dd>{{ customer.updated_at ? new Date(customer.updated_at).toLocaleString() : '—' }}</dd></div>
-                        <div><dt class="text-[#637067]">Addresses</dt><dd>{{ customer.addresses_count }}</dd></div>
-                    </dl>
-                </article>
-                <article class="border border-[#17211b]/15 bg-white p-5">
-                    <h2 class="text-xl font-semibold">Internal notes</h2>
-                    <p class="mt-4 text-sm whitespace-pre-line text-[#637067]">{{ customer.notes || 'No internal notes.' }}</p>
-                </article>
+            <div class="grid gap-3 lg:grid-cols-3">
+                <article class="admin-card p-4 sm:p-5"><div class="flex items-start justify-between gap-3"><h2 class="text-sm font-semibold">{{ t('customers.contact') }}</h2><StatusBadge :status="customer.status" /></div><dl class="mt-4 grid gap-3 text-sm"><div><dt class="admin-label">{{ t('customers.email') }}</dt><dd class="mt-1 break-words">{{ customer.email ?? t('common.none') }}</dd></div><div><dt class="admin-label">{{ t('customers.phone') }}</dt><dd class="mt-1 font-mono text-xs">{{ customer.phone ?? t('common.none') }}</dd></div></dl></article>
+                <article class="admin-card p-4 sm:p-5"><h2 class="text-sm font-semibold">{{ t('customers.record') }}</h2><dl class="mt-4 grid grid-cols-2 gap-3 text-sm"><div><dt class="admin-label">{{ t('customers.createdAt') }}</dt><dd class="mt-1 text-xs">{{ formatDate(customer.created_at) }}</dd></div><div><dt class="admin-label">{{ t('customers.updatedAt') }}</dt><dd class="mt-1 text-xs">{{ formatDate(customer.updated_at) }}</dd></div><div><dt class="admin-label">{{ t('customers.addressCount') }}</dt><dd class="mt-1 font-mono font-semibold">{{ customer.addresses_count }}</dd></div></dl></article>
+                <article class="admin-card p-4 sm:p-5"><h2 class="text-sm font-semibold">{{ t('customers.notes') }}</h2><p class="mt-4 text-sm leading-6 whitespace-pre-line text-admin-text-secondary">{{ customer.notes || t('customers.noNotes') }}</p></article>
             </div>
 
-            <section class="mt-12">
-                <div class="flex flex-wrap items-end justify-between gap-4">
-                    <h2 class="text-3xl font-semibold">Addresses</h2>
-                    <p v-if="currentStore" class="text-xs text-[#637067]">Active store: {{ currentStore.name }}</p>
-                </div>
-                <p v-if="!addresses.length" class="mt-5 text-[#637067]">No addresses yet.</p>
-                <div class="mt-5 grid gap-4 md:grid-cols-2">
-                    <article v-for="address in addresses" :key="address.id" class="border border-[#17211b]/15 bg-white p-5">
-                        <div class="flex flex-wrap items-center justify-between gap-3">
-                            <strong>{{ address.label || 'Address' }}</strong>
-                            <div class="flex flex-wrap gap-2">
-                                <span v-if="address.is_default_shipping" class="bg-emerald-100 px-2 py-1 text-xs font-semibold">Shipping default</span>
-                                <span v-if="address.is_default_billing" class="bg-blue-100 px-2 py-1 text-xs font-semibold">Billing default</span>
-                            </div>
-                        </div>
-                        <p v-for="line in addressLines(address)" :key="line" class="mt-1 first:mt-3 text-sm">{{ line }}</p>
-                    </article>
-                </div>
-            </section>
+            <section><div class="mb-3"><p class="admin-label text-admin-secondary">{{ t('customers.addressBook') }}</p><h2 class="mt-1 text-lg font-semibold">{{ t('customers.addresses') }}</h2></div><div v-if="addresses.length" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"><article v-for="address in addresses" :key="address.id" class="admin-card p-4"><div class="flex items-start justify-between gap-3"><h3 class="text-sm font-semibold">{{ address.label || t('customers.address') }}</h3><div class="flex flex-wrap justify-end gap-1"><span v-if="address.is_default_shipping" class="rounded border border-admin-success-border bg-admin-success-bg px-1.5 py-0.5 text-[10px] font-semibold text-admin-success">{{ t('customers.shippingDefault') }}</span><span v-if="address.is_default_billing" class="rounded border border-admin-info-border bg-admin-info-bg px-1.5 py-0.5 text-[10px] font-semibold text-admin-info">{{ t('customers.billingDefault') }}</span></div></div><address class="mt-3 text-xs leading-5 not-italic text-admin-text-secondary"><span v-for="line in addressLines(address)" :key="line" class="block">{{ line }}</span></address></article></div><EmptyState v-else :title="t('customers.noAddresses')" :description="t('customers.noAddressesHelp')"><template v-if="capabilities.update" #actions><Link :href="`/admin/customers/${customer.id}/edit`" class="admin-link text-sm">{{ t('customers.addAddress') }}</Link></template></EmptyState></section>
 
-            <section v-if="capabilities.view_orders && orderHistory" class="mt-12">
-                <div class="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <h2 class="text-3xl font-semibold">Order history</h2>
-                        <p class="mt-2 text-sm text-[#637067]">Tenant-wide orders placed by this customer across every store.</p>
-                    </div>
-                    <p class="text-sm text-[#637067]">{{ orderHistory.total }} order(s)</p>
-                </div>
-                <p v-if="ordersInOtherStores > 0" class="mt-4 border border-amber-800/20 bg-amber-50 px-4 py-3 text-sm text-amber-900">{{ ordersInOtherStores }} of these orders belong to another store and cannot be opened from here. Select that store to view them.</p>
-                <div class="mt-5 overflow-x-auto border border-[#17211b]/15 bg-white">
-                    <table class="w-full min-w-[820px] text-left text-sm">
-                        <thead class="bg-[#17211b] text-white"><tr><th class="p-4">Order</th><th class="p-4">Status</th><th class="p-4">Payment</th><th class="p-4">Fulfillment</th><th class="p-4">Total</th><th class="p-4">Placed</th></tr></thead>
-                        <tbody>
-                            <tr v-for="order in orderHistory.data" :key="order.id" class="border-t border-[#17211b]/10">
-                                <td class="p-4 font-mono font-semibold">
-                                    <Link v-if="order.openable" :href="`/admin/orders/${order.id}`" class="text-emerald-800 underline">{{ order.order_number }}</Link>
-                                    <span v-else>{{ order.order_number }}<span class="ml-2 text-xs text-[#637067]">(other store)</span></span>
-                                </td>
-                                <td class="p-4">{{ order.status }}</td>
-                                <td class="p-4">{{ order.payment_status }}</td>
-                                <td class="p-4">{{ order.fulfillment_status }}</td>
-                                <td class="p-4 font-mono">{{ order.currency }} {{ order.grand_total }}</td>
-                                <td class="p-4">{{ new Date(order.placed_at).toLocaleString() }}</td>
-                            </tr>
-                            <tr v-if="!orderHistory.data.length"><td colspan="6" class="p-8 text-center text-[#637067]">This customer has no orders yet.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <nav v-if="orderHistory.data.length" class="mt-6 flex flex-wrap items-center justify-between gap-4">
-                    <p class="text-sm text-[#637067]">{{ orderHistory.from }}–{{ orderHistory.to }} of {{ orderHistory.total }}</p>
-                    <div class="flex flex-wrap gap-2">
-                        <template v-for="link in orderHistory.links" :key="link.label">
-                            <Link v-if="link.url" :href="link.url" preserve-state class="border px-3 py-2 text-sm" :class="link.active ? 'border-[#17211b] bg-[#17211b] text-white' : 'border-[#17211b]/20'" v-html="link.label" />
-                            <span v-else class="border border-[#17211b]/10 px-3 py-2 text-sm text-[#637067]" v-html="link.label" />
-                        </template>
-                    </div>
-                </nav>
+            <section v-if="capabilities.view_orders && orderHistory" class="admin-card overflow-hidden"><header class="border-b border-admin-border px-5 py-4 sm:px-6"><div class="flex flex-wrap items-end justify-between gap-3"><div><p class="admin-label text-admin-secondary">{{ t('customers.orders') }}</p><h2 class="mt-1 text-lg font-semibold">{{ t('customers.ordersCount', { count: orderHistory.total }) }}</h2><p class="mt-1 text-xs text-admin-neutral">{{ t('customers.ordersHelp') }}</p></div><p class="text-xs text-admin-neutral">{{ currentStore ? t('customers.activeStore', { store: currentStore.name }) : t('customers.noActiveStore') }}</p></div><p v-if="ordersInOtherStores > 0" class="mt-3 rounded-md border border-admin-warning-border bg-admin-warning-bg px-3 py-2 text-xs text-admin-text-secondary">{{ t('customers.otherStoreWarning', { count: ordersInOtherStores }) }}</p></header>
+                <template v-if="orderHistory.data.length"><div class="hidden md:block"><table class="admin-table w-full table-fixed text-left text-xs"><thead><tr><th class="w-[19%] p-3">{{ t('customers.order') }}</th><th class="w-[15%] p-3">{{ t('common.status') }}</th><th class="w-[15%] p-3">{{ t('customers.payment') }}</th><th class="w-[16%] p-3">{{ t('customers.fulfillment') }}</th><th class="w-[17%] p-3 text-right">{{ t('customers.total') }}</th><th class="w-[18%] p-3">{{ t('customers.placedAt') }}</th></tr></thead><tbody class="divide-y divide-admin-border"><tr v-for="order in orderHistory.data" :key="order.id"><td class="p-3 font-mono font-semibold"><Link v-if="order.openable" :href="`/admin/orders/${order.id}`" class="admin-link">{{ order.order_number }}</Link><span v-else>{{ order.order_number }}<span class="mt-0.5 block font-sans text-[10px] font-normal text-admin-neutral">{{ t('customers.otherStore') }}</span></span></td><td class="p-3"><StatusBadge :status="order.status" /></td><td class="p-3"><StatusBadge :status="order.payment_status" /></td><td class="p-3"><StatusBadge :status="order.fulfillment_status" /></td><td class="p-3 text-right font-mono font-semibold tabular-nums">{{ formatMoney(order) }}</td><td class="p-3 text-admin-neutral">{{ formatDate(order.placed_at) }}</td></tr></tbody></table></div>
+                    <div class="grid gap-2.5 p-3 md:hidden"><article v-for="order in orderHistory.data" :key="`mobile-${order.id}`" class="rounded-md border border-admin-border p-3"><div class="flex items-start justify-between gap-3"><div><Link v-if="order.openable" :href="`/admin/orders/${order.id}`" class="admin-link font-mono text-xs">{{ order.order_number }}</Link><p v-else class="font-mono text-xs font-semibold">{{ order.order_number }} <span class="font-sans font-normal text-admin-neutral">· {{ t('customers.otherStore') }}</span></p><p class="mt-1 text-[10px] text-admin-neutral">{{ formatDate(order.placed_at) }}</p></div><p class="font-mono text-xs font-semibold">{{ formatMoney(order) }}</p></div><dl class="mt-3 grid grid-cols-3 gap-2 border-t border-admin-border pt-3"><div><dt class="admin-label">{{ t('common.status') }}</dt><dd class="mt-1"><StatusBadge :status="order.status" /></dd></div><div><dt class="admin-label">{{ t('customers.payment') }}</dt><dd class="mt-1"><StatusBadge :status="order.payment_status" /></dd></div><div><dt class="admin-label">{{ t('customers.fulfillment') }}</dt><dd class="mt-1"><StatusBadge :status="order.fulfillment_status" /></dd></div></dl></article></div>
+                </template><div v-else class="p-4"><EmptyState :title="t('customers.noOrders')" :description="t('customers.noOrdersHelp')" /></div><footer v-if="orderHistory.data.length" class="border-t border-admin-border px-4 py-3"><Pagination :links="orderHistory.links" :from="orderHistory.from" :to="orderHistory.to" :total="orderHistory.total" preserve-state /></footer>
             </section>
-            <p v-else-if="!capabilities.view_orders" class="mt-12 border border-[#17211b]/15 bg-white p-6 text-sm text-[#637067]">Order history is hidden because you do not have access to orders.</p>
+            <aside v-else-if="!capabilities.view_orders" class="rounded-md border border-admin-border bg-admin-surface px-4 py-3 text-sm text-admin-text-secondary">{{ t('customers.ordersHidden') }}</aside>
         </section>
     </AdminLayout>
 </template>

@@ -1,42 +1,70 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.vue';
+import PageHeader from '../../../components/admin/PageHeader.vue';
 import AdminLayout from '../../../layouts/AdminLayout.vue';
 import type { PageProps } from '../../../types';
 
 interface SetupState { status: string; detail: string }
-const props = defineProps<{ setup: Record<string, SetupState>; store: { id: string; name: string; currency: string; timezone: string; locale: string } | null }>();
+interface HubCard { key: string; setupKey?: string; href: string; permission?: string; contextual?: boolean }
+
+const props = defineProps<{
+    setup: Record<string, SetupState>;
+    store: { id: string; name: string; currency: string; timezone: string; locale: string } | null;
+}>();
 const page = usePage<PageProps>();
+const { t, te } = useI18n();
 const permissions = computed(() => page.props.currentTenantMembership?.permissions ?? []);
-const cards = computed(() => [
-    { key: 'company', title: 'Company', description: 'Company identity and operational status.', href: '/admin/settings/general', show: true },
-    { key: 'store', title: 'Stores & localization', description: props.store ? `${props.store.name}: ${props.store.currency}, ${props.store.timezone}, ${props.store.locale}` : 'Create or select an operational store.', href: '/admin/stores', show: permissions.value.includes('stores.view') },
-    { key: 'inventory', title: 'Inventory', description: 'Locations and the default fulfillment location.', href: '/admin/inventory/locations', show: permissions.value.includes('inventory.view') },
-    { key: 'payments', title: 'Payments & COD', description: 'Methods, COD deposits and store payment behavior.', href: '/admin/settings/payments', show: permissions.value.includes('payments.settings') },
-    { key: 'fiscal', title: 'Fiscal', description: 'Issuer, fiscal series, tax categories and rates.', href: '/admin/settings/fiscal', show: permissions.value.includes('fiscal_settings.view') },
-    { key: 'sunat', title: 'SUNAT integration', description: props.setup.sunat.detail, href: '/admin/settings/fiscal', show: permissions.value.includes('fiscal_settings.view') },
-    { key: 'team', title: 'Team & access', description: 'Members, invitations, roles and effective permissions.', href: '/admin/settings/team', show: permissions.value.includes('members.view') },
-    { key: 'integrations', title: 'Integrations', description: 'No additional merchant integrations are available yet.', href: null, show: true },
-]);
+const cards: HubCard[] = [
+    { key: 'company', href: '/admin/settings/general' },
+    { key: 'store', href: '/admin/stores', permission: 'stores.view' },
+    { key: 'localization', href: '/admin/stores', permission: 'stores.view', contextual: true },
+    { key: 'inventory', href: '/admin/inventory/locations', permission: 'inventory.view' },
+    { key: 'pricing', href: '/admin/pricing', permission: 'pricing.view' },
+    { key: 'payments', href: '/admin/settings/payments', permission: 'payments.settings', contextual: true },
+    { key: 'fiscal', href: '/admin/settings/fiscal', permission: 'fiscal_settings.view', contextual: true },
+    { key: 'taxes', setupKey: 'fiscal', href: '/admin/taxes', permission: 'taxes.view' },
+    { key: 'sunat', href: '/admin/settings/fiscal', permission: 'fiscal_settings.view' },
+    { key: 'team', href: '/admin/settings/team', permission: 'members.view' },
+];
+const visibleCards = computed(() => cards.filter((card) => !card.permission || permissions.value.includes(card.permission)));
+const setupFor = (card: HubCard) => props.setup[card.setupKey ?? card.key];
+const setupLabel = (status: string) => {
+    const key = `settings.setupStatuses.${status}`;
+    return te(key) ? t(key) : status;
+};
+const isReady = (status: string) => status === 'Configured' || status === 'Beta configured';
+const description = (card: HubCard) => card.contextual && !props.store
+    ? t('settings.hub.noCurrentStore')
+    : card.key === 'localization' && props.store
+        ? t('settings.hub.cards.localization.current', { store: props.store.name, currency: props.store.currency, timezone: props.store.timezone, locale: props.store.locale })
+        : t(`settings.hub.cards.${card.key}.description`);
 </script>
 
 <template>
-    <Head title="Settings" />
+    <Head :title="t('settings.title')" />
     <AdminLayout>
-        <section>
-            <p class="font-mono text-xs tracking-[0.2em] text-emerald-800 uppercase">Administration</p>
-            <h1 class="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">Settings.</h1>
-            <p class="mt-4 max-w-2xl text-[#516057]">Operational configuration is derived from the records that power each module. Warnings do not block daily work.</p>
+        <section class="mx-auto grid w-full max-w-7xl gap-5 sm:gap-6">
+            <Breadcrumbs :items="[{ label: t('settings.title') }]" />
+            <PageHeader :title="t('settings.title')" :eyebrow="t('settings.hub.eyebrow')" :description="t('settings.hub.description')" />
 
-            <div class="mt-10 grid gap-px overflow-hidden border border-[#17211b]/15 bg-[#17211b]/15 md:grid-cols-2 xl:grid-cols-3">
-                <article v-for="card in cards.filter((item) => item.show)" :key="card.key" class="flex min-h-52 flex-col bg-[#f8f5ed] p-6">
-                    <div class="flex items-start justify-between gap-4">
-                        <h2 class="text-xl font-semibold">{{ card.title }}</h2>
-                        <span v-if="setup[card.key]" class="whitespace-nowrap text-xs font-semibold" :class="setup[card.key].status.includes('Configured') ? 'text-emerald-800' : 'text-amber-700'">{{ setup[card.key].status }}</span>
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-admin-info-border bg-admin-info-bg px-4 py-3 text-xs text-admin-info">
+                <p>{{ t('settings.hub.derivedHelp') }}</p>
+                <p v-if="store" class="font-mono font-medium">{{ t('settings.hub.currentStore', { store: store.name }) }}</p>
+                <p v-else class="font-medium">{{ t('settings.hub.noStore') }}</p>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <article v-for="card in visibleCards" :key="card.key" class="admin-card flex min-h-48 min-w-0 flex-col p-4 sm:p-5">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0"><p class="admin-label text-admin-secondary">{{ t(`settings.hub.cards.${card.key}.section`) }}</p><h2 class="mt-1 text-base font-semibold">{{ t(`settings.hub.cards.${card.key}.title`) }}</h2></div>
+                        <span v-if="setupFor(card)" class="shrink-0 rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium" :class="isReady(setupFor(card).status) ? 'border-admin-success-border bg-admin-success-bg text-admin-success' : 'border-admin-warning-border bg-admin-warning-bg text-amber-700'">{{ setupLabel(setupFor(card).status) }}</span>
                     </div>
-                    <p class="mt-4 text-sm leading-6 text-[#516057]">{{ card.description }}</p>
-                    <Link v-if="card.href" :href="card.href" class="mt-auto pt-8 text-sm font-semibold text-emerald-800 hover:underline">Open settings</Link>
-                    <p v-else class="mt-auto pt-8 text-xs text-[#637067]">Informational only</p>
+                    <p class="mt-3 text-xs leading-5 text-admin-text-secondary">{{ description(card) }}</p>
+                    <p v-if="setupFor(card)" class="mt-2 text-[11px] leading-4 text-admin-neutral">{{ t(`settings.setupDetails.${card.setupKey ?? card.key}`) }}</p>
+                    <Link :href="card.href" class="mt-auto inline-flex min-h-9 items-end pt-5 text-sm font-semibold text-admin-secondary hover:underline">{{ t('settings.hub.open') }}</Link>
                 </article>
             </div>
         </section>

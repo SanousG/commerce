@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import Breadcrumbs from '../../../components/admin/Breadcrumbs.vue';
+import EmptyState from '../../../components/admin/EmptyState.vue';
+import PageHeader from '../../../components/admin/PageHeader.vue';
+import Pagination from '../../../components/admin/Pagination.vue';
 import FieldError from '../../../components/FieldError.vue';
+import StatusNotice from '../../../components/StatusNotice.vue';
 import AdminLayout from '../../../layouts/AdminLayout.vue';
+import type { PageProps } from '../../../types';
 
 interface Product { id: string; name: string }
 interface Variant { id: string; name: string | null; sku: string }
@@ -10,58 +17,45 @@ interface Location { id: string; name: string; code: string }
 interface Level { location_id: string; location_name: string; location_code: string; on_hand: number; reserved: number; available: number; cost_status?: string; average_unit_cost?: string | null; inventory_value?: string | null; cost_currency?: string | null }
 interface Movement { id: string; location_name: string; type: string; quantity_delta: number; reason: string | null; occurred_at: string }
 interface PageLink { url: string | null; label: string; active: boolean }
-
-const props = defineProps<{
-    product: Product;
-    variant: Variant;
-    levels: Level[];
-    movements: { data: Movement[]; links: PageLink[] };
-    locations: Location[];
-    can_adjust: boolean;
-    can_view_cost: boolean;
-    can_manage_cost: boolean;
-}>();
-
+const props = defineProps<{ product: Product; variant: Variant; levels: Level[]; movements: { data: Movement[]; links: PageLink[]; from?: number | null; to?: number | null; total?: number }; locations: Location[]; can_adjust: boolean; can_view_cost: boolean; can_manage_cost: boolean }>();
+const page = usePage<PageProps>();
 const selectedLocationId = ref('');
 const form = useForm({ quantity_delta: 0, reason: '' });
-const submit = () => form.post(`/admin/inventory/locations/${selectedLocationId.value}/variants/${props.variant.id}/adjust`, {
-    preserveScroll: true,
-    onSuccess: () => form.reset(),
-});
 const costForms = Object.fromEntries(props.levels.map((level) => [level.location_id, useForm({ unit_cost: '', currency: 'PEN' })]));
-const initializeCost = (level: Level) => costForms[level.location_id].post(`/admin/inventory/locations/${level.location_id}/variants/${props.variant.id}/initialize-cost`, { preserveScroll: true });
+const { t, locale } = useI18n();
+const localizedStatus = computed(() => {
+    const keys: Record<string, string> = { 'Inventory adjustment recorded.': 'inventory.notices.adjusted', 'Inventory cost initialized.': 'inventory.notices.costInitialized' };
+    return page.props.status ? t(keys[page.props.status] ?? 'inventory.notices.completed') : undefined;
+});
+const adjustmentError = computed(() => form.errors.quantity_delta ? t('inventory.errors.quantityDelta') : form.errors.reason ? t('inventory.errors.reason') : undefined);
+const submit = () => { if (!form.processing && selectedLocationId.value) form.post(`/admin/inventory/locations/${selectedLocationId.value}/variants/${props.variant.id}/adjust`, { preserveScroll: true, onSuccess: () => { form.reset(); selectedLocationId.value = ''; } }); };
+const initializeCost = (level: Level) => { const cost = costForms[level.location_id]; if (!cost.processing) cost.post(`/admin/inventory/locations/${level.location_id}/variants/${props.variant.id}/initialize-cost`, { preserveScroll: true }); };
+const costError = (level: Level) => {
+    const errors = costForms[level.location_id].errors;
+    if (errors.unit_cost) return t('inventory.errors.unitCost');
+    if (errors.currency) return t('inventory.errors.currency');
+    return undefined;
+};
+const movementType = (type: string) => t(`inventory.movementTypes.${type}`);
+const formatDate = (value: string) => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(`${value.replace(' ', 'T')}Z`));
 </script>
 
 <template>
-    <Head :title="`${product.name} inventory`" />
-    <AdminLayout>
-        <section>
-            <div class="flex flex-wrap items-end justify-between gap-5">
-                <div>
-                    <p class="font-mono text-xs tracking-[0.2em] text-emerald-800 uppercase">{{ variant.sku }}<template v-if="variant.name"> / {{ variant.name }}</template></p>
-                    <h1 class="mt-4 text-4xl font-semibold tracking-[-0.04em] sm:text-6xl">{{ product.name }}</h1>
-                </div>
-                <Link href="/admin/inventory" class="font-semibold text-emerald-800 hover:underline">Back to inventory</Link>
-            </div>
+    <Head :title="`${product.name} · ${t('inventory.title')}`" />
+    <AdminLayout><section class="mx-auto grid w-full max-w-[90rem] gap-5 sm:gap-6">
+        <Breadcrumbs :items="[{ label: t('nav.operations') }, { label: t('inventory.title'), href: '/admin/inventory' }, { label: variant.sku }]" />
+        <PageHeader :title="product.name" :eyebrow="`${variant.sku}${variant.name ? ` · ${variant.name}` : ''}`" :description="t('inventory.variant.description')"><template #actions><Link href="/admin/inventory" class="inline-flex min-h-9 items-center justify-center rounded-md border border-admin-border-strong bg-white px-4 text-sm font-semibold text-admin-text-secondary hover:bg-slate-50">{{ t('inventory.back') }}</Link></template></PageHeader>
+        <StatusNotice :message="localizedStatus" class="!mb-0 rounded-md !border-admin-success !bg-admin-success-bg !text-admin-success" />
 
-            <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <article v-for="level in levels" :key="level.location_id" class="border border-[#17211b]/15 bg-[#f8f5ed] p-5">
-                    <p class="font-mono text-xs tracking-[0.16em] text-[#637067] uppercase">{{ level.location_code }}</p>
-                    <h2 class="mt-2 text-xl font-semibold">{{ level.location_name }}</h2>
-                    <dl class="mt-5 grid grid-cols-3 gap-2 text-sm"><div><dt class="text-[#637067]">On hand</dt><dd class="mt-1 text-lg font-semibold tabular-nums">{{ level.on_hand }}</dd></div><div><dt class="text-[#637067]">Reserved</dt><dd class="mt-1 text-lg font-semibold tabular-nums">{{ level.reserved }}</dd></div><div><dt class="text-[#637067]">Available</dt><dd class="mt-1 text-lg font-semibold tabular-nums">{{ level.available }}</dd></div></dl>
-                    <div v-if="can_view_cost" class="mt-5 border-t border-[#17211b]/15 pt-4"><p class="text-xs font-semibold tracking-wide uppercase" :class="level.cost_status === 'ACTIVE' ? 'text-emerald-800' : 'text-amber-800'">{{ level.cost_status }}</p><dl class="mt-3 grid grid-cols-2 gap-3 text-sm"><div><dt class="text-[#637067]">Average cost</dt><dd class="mt-1 font-mono font-semibold">{{ level.average_unit_cost === null ? 'Not initialized' : `${level.cost_currency} ${level.average_unit_cost}` }}</dd></div><div><dt class="text-[#637067]">Inventory value</dt><dd class="mt-1 font-mono font-semibold">{{ level.inventory_value === null ? 'Unavailable' : `${level.cost_currency} ${level.inventory_value}` }}</dd></div></dl><form v-if="can_manage_cost && level.cost_status === 'UNINITIALIZED' && level.on_hand > 0" class="mt-4 grid grid-cols-[1fr_6rem_auto] gap-2" @submit.prevent="initializeCost(level)"><input v-model="costForms[level.location_id].unit_cost" required inputmode="decimal" placeholder="Unit cost" class="min-w-0 border bg-white px-3 py-2 text-sm" /><input v-model="costForms[level.location_id].currency" required maxlength="3" class="min-w-0 border bg-white px-3 py-2 font-mono text-sm uppercase" /><button :disabled="costForms[level.location_id].processing" class="bg-[#17211b] px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">Initialize</button><FieldError class="col-span-3" :message="costForms[level.location_id].errors.unit_cost ?? costForms[level.location_id].errors.currency" /></form></div>
-                </article>
-                <p v-if="!levels.length" class="border border-dashed border-[#17211b]/25 p-6 text-[#637067] sm:col-span-2 lg:col-span-3">No stock has been recorded for this variant.</p>
-            </div>
-
-            <form v-if="can_adjust" class="mt-10 grid gap-4 border border-[#17211b]/15 bg-white p-6 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="submit">
-                <div><label class="mb-2 block text-sm font-semibold">Location</label><select v-model="selectedLocationId" required class="w-full border border-[#17211b]/25 bg-white px-4 py-3"><option value="" disabled>Select a location</option><option v-for="location in locations" :key="location.id" :value="location.id">{{ location.name }} / {{ location.code }}</option></select></div>
-                <div><label class="mb-2 block text-sm font-semibold">Quantity change</label><input v-model.number="form.quantity_delta" required type="number" step="1" class="w-full border border-[#17211b]/25 bg-white px-4 py-3" /><FieldError :message="form.errors.quantity_delta" /></div>
-                <div class="sm:col-span-2"><label class="mb-2 block text-sm font-semibold">Reason</label><input v-model="form.reason" required maxlength="255" placeholder="Stock count correction" class="w-full border border-[#17211b]/25 bg-white px-4 py-3" /><FieldError :message="form.errors.reason" /></div>
-                <button :disabled="form.processing || !selectedLocationId" class="w-fit bg-[#17211b] px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:col-span-2 lg:col-span-4">{{ form.processing ? 'Saving...' : 'Record adjustment' }}</button>
-            </form>
-
-            <div class="mt-12"><h2 class="text-3xl font-semibold tracking-[-0.03em]">Movement history</h2><div class="mt-6 overflow-x-auto border border-[#17211b]/15 bg-[#f8f5ed]"><table class="w-full min-w-[700px] text-left text-sm"><thead class="border-b border-[#17211b]/15 font-mono text-xs uppercase"><tr><th class="p-4">Date</th><th class="p-4">Location</th><th class="p-4">Type</th><th class="p-4">Change</th><th class="p-4">Reason</th></tr></thead><tbody><tr v-for="movement in movements.data" :key="movement.id" class="border-b border-[#17211b]/10 last:border-0"><td class="p-4">{{ movement.occurred_at }}</td><td class="p-4">{{ movement.location_name }}</td><td class="p-4">{{ movement.type }}</td><td class="p-4 font-semibold tabular-nums" :class="movement.quantity_delta < 0 ? 'text-red-800' : 'text-emerald-800'">{{ movement.quantity_delta > 0 ? '+' : '' }}{{ movement.quantity_delta }}</td><td class="p-4">{{ movement.reason ?? 'None' }}</td></tr><tr v-if="!movements.data.length"><td colspan="5" class="p-8 text-center text-[#637067]">No movements recorded.</td></tr></tbody></table></div><nav class="mt-6 flex flex-wrap gap-2"><template v-for="link in movements.links" :key="link.label"><Link v-if="link.url" :href="link.url" class="border px-3 py-2 text-sm" :class="link.active ? 'bg-[#17211b] text-white' : ''" v-html="link.label" /></template></nav></div>
+        <section><div class="mb-3"><p class="admin-label text-admin-secondary">{{ t('inventory.variant.levelsSection') }}</p><h2 class="mt-1 text-lg font-semibold text-admin-text">{{ t('inventory.variant.stockByLocation') }}</h2><p class="mt-1 text-xs text-admin-neutral">{{ t('inventory.variant.levelsHelp') }}</p></div>
+            <div v-if="levels.length" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"><article v-for="level in levels" :key="level.location_id" class="admin-card overflow-hidden"><header class="flex items-start justify-between gap-3 border-b border-admin-border px-4 py-3"><div><p class="font-mono text-[10px] font-semibold text-admin-neutral">{{ level.location_code }}</p><h3 class="mt-1 text-sm font-semibold text-admin-text">{{ level.location_name }}</h3></div><span v-if="can_view_cost" class="rounded border px-2 py-1 text-[10px] font-semibold" :class="level.cost_status === 'ACTIVE' ? 'border-admin-success-border bg-admin-success-bg text-admin-success' : 'border-admin-warning-border bg-admin-warning-bg text-admin-warning'">{{ t(`inventory.costStatuses.${level.cost_status}`) }}</span></header><dl class="grid grid-cols-3 gap-2 px-4 py-4"><div><dt class="admin-label">{{ t('inventory.onHand') }}</dt><dd class="mt-1 font-mono text-lg font-semibold">{{ level.on_hand }}</dd></div><div><dt class="admin-label">{{ t('inventory.reserved') }}</dt><dd class="mt-1 font-mono text-lg font-semibold">{{ level.reserved }}</dd></div><div><dt class="admin-label">{{ t('inventory.available') }}</dt><dd class="mt-1 font-mono text-lg font-semibold" :class="level.available <= 0 ? 'text-admin-danger' : 'text-admin-success'">{{ level.available }}</dd></div></dl>
+                <div v-if="can_view_cost" class="border-t border-admin-border bg-admin-canvas px-4 py-3"><dl class="grid grid-cols-2 gap-3"><div><dt class="admin-label">{{ t('inventory.averageCost') }}</dt><dd class="mt-1 font-mono text-xs font-semibold">{{ level.average_unit_cost === null ? t('inventory.notInitialized') : `${level.cost_currency} ${level.average_unit_cost}` }}</dd></div><div><dt class="admin-label">{{ t('inventory.inventoryValue') }}</dt><dd class="mt-1 font-mono text-xs font-semibold">{{ level.inventory_value === null ? t('common.unavailable') : `${level.cost_currency} ${level.inventory_value}` }}</dd></div></dl>
+                    <form v-if="can_manage_cost && level.cost_status === 'UNINITIALIZED' && level.on_hand > 0" class="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_5.5rem_auto]" @submit.prevent="initializeCost(level)"><label class="sr-only" :for="`cost-${level.location_id}`">{{ t('inventory.unitCostFor', { location: level.location_name }) }}</label><input :id="`cost-${level.location_id}`" v-model="costForms[level.location_id].unit_cost" required inputmode="decimal" pattern="\d+([.]\d{1,6})?" placeholder="0.000000" class="admin-control min-w-0 px-3 font-mono text-xs" :aria-invalid="costError(level) ? 'true' : undefined" /><label class="sr-only" :for="`currency-${level.location_id}`">{{ t('inventory.currencyFor', { location: level.location_name }) }}</label><input :id="`currency-${level.location_id}`" v-model="costForms[level.location_id].currency" required maxlength="3" pattern="[A-Za-z]{3}" class="admin-control min-w-0 px-2 font-mono text-xs uppercase" /><button type="submit" :disabled="costForms[level.location_id].processing" class="min-h-9 rounded-md bg-admin-primary px-3 text-xs font-semibold text-white disabled:opacity-60">{{ costForms[level.location_id].processing ? t('common.saving') : t('inventory.initialize') }}</button><FieldError class="sm:col-span-3" :message="costError(level)" /></form></div></article></div>
+            <EmptyState v-else :title="t('inventory.variant.noLevels')" :description="t('inventory.variant.noLevelsHelp')" />
         </section>
-    </AdminLayout>
+
+        <form v-if="can_adjust" class="admin-card overflow-hidden" @submit.prevent="submit"><header class="border-b border-admin-border px-5 py-4 sm:px-6"><p class="admin-label text-admin-secondary">{{ t('inventory.variant.adjustSection') }}</p><h2 class="mt-1 text-lg font-semibold text-admin-text">{{ t('inventory.variant.adjust') }}</h2><p class="mt-1 text-xs text-admin-neutral">{{ t('inventory.variant.adjustHelp') }}</p></header><div class="grid gap-4 p-5 sm:p-6 lg:grid-cols-4"><div><label for="adjust-location" class="mb-1.5 block text-sm font-semibold">{{ t('inventory.location') }} <span class="text-admin-danger">*</span></label><select id="adjust-location" v-model="selectedLocationId" required class="admin-control w-full px-3 text-sm"><option value="">{{ t('inventory.selectLocation') }}</option><option v-for="location in locations" :key="location.id" :value="location.id">{{ location.name }} · {{ location.code }}</option></select></div><div><label for="adjust-quantity" class="mb-1.5 block text-sm font-semibold">{{ t('inventory.quantityChange') }} <span class="text-admin-danger">*</span></label><input id="adjust-quantity" v-model.number="form.quantity_delta" required type="number" step="1" class="admin-control w-full px-3 font-mono text-sm" :aria-invalid="Boolean(form.errors.quantity_delta)" /></div><div class="lg:col-span-2"><label for="adjust-reason" class="mb-1.5 block text-sm font-semibold">{{ t('inventory.reason') }} <span class="text-admin-danger">*</span></label><input id="adjust-reason" v-model="form.reason" required maxlength="255" :placeholder="t('inventory.reasonPlaceholder')" class="admin-control w-full px-3 text-sm" :aria-invalid="Boolean(form.errors.reason)" /><FieldError :message="adjustmentError" /></div></div><footer class="flex justify-end border-t border-admin-border bg-admin-canvas px-5 py-4 sm:px-6"><button type="submit" :disabled="form.processing || !selectedLocationId" class="min-h-10 w-full rounded-md bg-admin-primary px-5 text-sm font-semibold text-white disabled:opacity-60 sm:w-auto">{{ form.processing ? t('common.saving') : t('inventory.recordAdjustment') }}</button></footer></form>
+
+        <section class="admin-card overflow-hidden"><header class="border-b border-admin-border px-5 py-4 sm:px-6"><p class="admin-label text-admin-secondary">{{ t('inventory.variant.historySection') }}</p><h2 class="mt-1 text-lg font-semibold text-admin-text">{{ t('inventory.variant.history') }}</h2><p class="mt-1 text-xs text-admin-neutral">{{ t('inventory.variant.historyHelp') }}</p></header><template v-if="movements.data.length"><div class="hidden md:block"><table class="admin-table w-full table-fixed text-left text-xs"><thead><tr><th class="w-[18%] p-3">{{ t('inventory.dateUtc') }}</th><th class="w-[22%] p-3">{{ t('inventory.location') }}</th><th class="w-[19%] p-3">{{ t('inventory.movementType') }}</th><th class="w-[12%] p-3 text-right">{{ t('inventory.change') }}</th><th class="w-[29%] p-3">{{ t('inventory.reason') }}</th></tr></thead><tbody class="divide-y divide-admin-border"><tr v-for="movement in movements.data" :key="movement.id"><td class="p-3 text-[11px] text-admin-neutral">{{ formatDate(movement.occurred_at) }}</td><td class="p-3 font-medium">{{ movement.location_name }}</td><td class="p-3 text-admin-text-secondary">{{ movementType(movement.type) }}</td><td class="p-3 text-right font-mono font-semibold" :class="movement.quantity_delta < 0 ? 'text-admin-danger' : 'text-admin-success'">{{ movement.quantity_delta > 0 ? '+' : '' }}{{ movement.quantity_delta }}</td><td class="p-3 text-admin-text-secondary">{{ movement.reason ?? t('common.none') }}</td></tr></tbody></table></div><div class="grid gap-2.5 p-3 md:hidden"><article v-for="movement in movements.data" :key="`mobile-${movement.id}`" class="rounded-md border border-admin-border p-3"><div class="flex items-start justify-between gap-3"><div><p class="text-xs font-semibold">{{ movementType(movement.type) }}</p><p class="mt-1 text-[10px] text-admin-neutral">{{ formatDate(movement.occurred_at) }}</p></div><span class="font-mono text-sm font-semibold" :class="movement.quantity_delta < 0 ? 'text-admin-danger' : 'text-admin-success'">{{ movement.quantity_delta > 0 ? '+' : '' }}{{ movement.quantity_delta }}</span></div><p class="mt-2 text-xs text-admin-text-secondary">{{ movement.location_name }} · {{ movement.reason ?? t('common.none') }}</p></article></div></template><div v-else class="p-5"><EmptyState :title="t('inventory.variant.noMovements')" :description="t('inventory.variant.noMovementsHelp')" /></div><footer class="border-t border-admin-border bg-admin-canvas px-5 py-4"><Pagination :links="movements.links" :from="movements.from" :to="movements.to" :total="movements.total" /></footer></section>
+    </section></AdminLayout>
 </template>

@@ -14,6 +14,7 @@ const props = defineProps<{
     from?: number | null;
     to?: number | null;
     total?: number;
+    preserveState?: boolean;
 }>();
 
 const hasNavigablePage = computed(() => Boolean(props.links.at(0)?.url || props.links.at(-1)?.url));
@@ -32,6 +33,7 @@ const linkLabel = (label: string, index: number) => index === 0 ? t('pagination.
                     v-if="link.url"
                     :href="link.url"
                     preserve-scroll
+                    :preserve-state="preserveState"
                     class="min-h-9 min-w-9 place-items-center rounded-md border px-2.5 text-xs font-medium transition"
                     :class="[
                         index > 0 && index < links.length - 1 && !link.active ? 'hidden sm:grid' : 'grid',
