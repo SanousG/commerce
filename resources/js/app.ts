@@ -14,9 +14,10 @@ createInertiaApp({
             `./pages/${name}.vue`,
             import.meta.glob<PageModule>('./pages/**/*.vue'),
         ).then((module) => module.default),
-    setup({ el, App, props, plugin }) {
+    async setup({ el, App, props, plugin }) {
         const locale = (props.initialPage.props.localization as { locale?: AdminLocale } | undefined)?.locale ?? 'es-PE';
-        createApp({ render: () => h(App, props) }).use(plugin).use(createAdminI18n(locale)).mount(el);
+        const i18n = await createAdminI18n(locale);
+        createApp({ render: () => h(App, props) }).use(plugin).use(i18n).mount(el);
     },
     progress: {
         color: '#2563EB',

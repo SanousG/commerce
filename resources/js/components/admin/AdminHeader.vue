@@ -2,6 +2,7 @@
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { loadAdminLocale, type AdminLocale } from '../../i18n';
 import type { PageProps } from '../../types';
 
 const emit = defineEmits<{ openMenu: [opener: HTMLButtonElement] }>();
@@ -11,19 +12,40 @@ const page = usePage<PageProps>();
 const currentTenant = computed(() => page.props.currentTenant);
 const currentStore = computed(() => page.props.currentStore);
 const unread = computed(() => page.props.unreadNotificationsCount ?? 0);
-const { t, locale } = useI18n();
+const { t, locale, setLocaleMessage } = useI18n();
 const savingLocale = ref(false);
+let localeChangeSequence = 0;
 const openMenu = (event: MouseEvent) => emit('openMenu', event.currentTarget as HTMLButtonElement);
-const changeLocale = (event: Event) => {
-    const selected = (event.target as HTMLSelectElement).value as 'es-PE' | 'en';
+const changeLocale = async (event: Event) => {
+    const selected = (event.target as HTMLSelectElement).value as AdminLocale;
     const previous = locale.value;
+    const sequence = ++localeChangeSequence;
+    savingLocale.value = true;
+
+    try {
+        await loadAdminLocale({ setLocaleMessage }, selected);
+    } catch {
+        if (sequence === localeChangeSequence) {
+            savingLocale.value = false;
+        }
+
+        return;
+    }
+
+    if (sequence !== localeChangeSequence) {
+        return;
+    }
+
     locale.value = selected;
     document.documentElement.lang = selected;
     router.patch('/admin/locale', { locale: selected }, {
         preserveScroll: true,
-        onStart: () => { savingLocale.value = true; },
         onError: () => { locale.value = previous; document.documentElement.lang = previous; },
-        onFinish: () => { savingLocale.value = false; },
+        onFinish: () => {
+            if (sequence === localeChangeSequence) {
+                savingLocale.value = false;
+            }
+        },
     });
 };
 </script>

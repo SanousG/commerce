@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { messages } from '../resources/js/i18n/messages.ts';
+import { baseCompile } from '@intlify/message-compiler';
+import englishMessages from '../resources/js/i18n/locales/en.ts';
+import spanishMessages from '../resources/js/i18n/locales/es-PE.ts';
 import { adminNavigation } from '../resources/js/components/admin/navigation.ts';
 
 const flatten = (value, prefix = '', output = {}) => {
@@ -21,13 +23,21 @@ const placeholders = (value) => [...value.matchAll(/\{([A-Za-z_][A-Za-z0-9_]*)\}
     .map((match) => match[1])
     .sort();
 
-const english = flatten(messages.en);
-const spanish = flatten(messages['es-PE']);
+const english = flatten(englishMessages);
+const spanish = flatten(spanishMessages);
 
 assert.deepEqual(Object.keys(spanish).sort(), Object.keys(english).sort(), 'Vue locale keys differ');
 
 for (const key of Object.keys(english)) {
     assert.deepEqual(placeholders(spanish[key]), placeholders(english[key]), `Placeholder mismatch: ${key}`);
+}
+
+for (const [locale, catalog] of [['en', english], ['es-PE', spanish]]) {
+    for (const [key, value] of Object.entries(catalog)) {
+        baseCompile(value, {
+            onError: (error) => assert.fail(`Invalid Vue message syntax (${locale}, ${key}): ${error.message}`),
+        });
+    }
 }
 
 for (const [key, value] of Object.entries(spanish)) {
@@ -45,6 +55,28 @@ assert.equal(spanish['products.description'], 'Descripción');
 assert.equal(spanish['auth.common.password'], 'Contraseña');
 assert.match(spanish['auth.login.forgot'], /^¿/u);
 assert.match(spanish['auth.login.title'], /^¡/u);
+const authSources = await Promise.all([
+    '../resources/js/layouts/AuthLayout.vue',
+    '../resources/js/pages/auth/Login.vue',
+    '../resources/js/pages/auth/Register.vue',
+    '../resources/js/pages/auth/ForgotPassword.vue',
+    '../resources/js/pages/auth/ResetPassword.vue',
+    '../resources/js/pages/auth/VerifyEmail.vue',
+].map((path) => readFile(new URL(path, import.meta.url), 'utf8')));
+const authKeys = [...new Set(authSources.flatMap((source) => (
+    [...source.matchAll(/\bt\('([^']+)'/gu)].map((match) => match[1])
+)))];
+authKeys.push(
+    'auth.layout.points.security',
+    'auth.layout.points.tenancy',
+    'auth.layout.points.operations',
+);
+for (const key of authKeys) {
+    assert.equal(typeof english[key], 'string', `Missing English Auth translation: ${key}`);
+    assert.equal(typeof spanish[key], 'string', `Missing Spanish Auth translation: ${key}`);
+    assert.notEqual(english[key], key, `Unresolved English Auth translation: ${key}`);
+    assert.notEqual(spanish[key], key, `Unresolved Spanish Auth translation: ${key}`);
+}
 assert.equal(spanish['media.title'], 'Biblioteca multimedia');
 assert.equal(spanish['media.upload'], 'Subir imagen');
 assert.equal(spanish['media.select'], 'Seleccionar imagen');
@@ -245,6 +277,9 @@ assert.equal(spanish['common.categories'], 'Categorías');
 
 const i18nBootstrap = await readFile(new URL('../resources/js/i18n/index.ts', import.meta.url), 'utf8');
 assert.match(i18nBootstrap, /fallbackLocale:\s*'es-PE'/u, 'Vue fallback must be es-PE');
+assert.match(i18nBootstrap, /import\('\.\/locales\/es-PE'\)/u, 'Spanish Vue catalog must be loaded dynamically');
+assert.match(i18nBootstrap, /import\('\.\/locales\/en'\)/u, 'English Vue catalog must be loaded dynamically');
+assert.doesNotMatch(i18nBootstrap, /from ['"]\.\/locales\//u, 'Vue catalogs must not be imported statically at runtime');
 
 const laravelEnglish = JSON.parse(await readFile(new URL('../lang/en.json', import.meta.url), 'utf8'));
 const laravelSpanish = JSON.parse(await readFile(new URL('../lang/es-PE.json', import.meta.url), 'utf8'));
