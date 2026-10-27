@@ -6,6 +6,7 @@
 .phpactor.json
 .phpunit.result.cache
 /.codex
+/.opencode/plugins/stitch-env.js
 /.cursor/
 /.idea
 /.nova
