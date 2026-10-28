@@ -75,6 +75,11 @@ class Store extends Model
         return $this->hasOne(StoreSettings::class);
     }
 
+    public function storefrontPublication(): HasOne
+    {
+        return $this->hasOne(StorefrontPublication::class);
+    }
+
     public function fulfillments(): HasMany
     {
         return $this->hasMany(Fulfillment::class);

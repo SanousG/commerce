@@ -25,6 +25,10 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        if ($request->routeIs('storefront.*')) {
+            return parent::share($request);
+        }
+
         return [
             ...parent::share($request),
             'auth' => [

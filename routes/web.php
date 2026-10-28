@@ -49,6 +49,10 @@ use App\Modules\Promotions\Http\Controllers\PromotionController;
 use App\Modules\Returns\Http\Controllers\ExchangeController;
 use App\Modules\Returns\Http\Controllers\ReturnController;
 use App\Modules\Returns\Http\Controllers\ReturnItemController;
+use App\Modules\Storefront\Http\Controllers\StorefrontHomeController;
+use App\Modules\Storefront\Http\Controllers\PublicMediaController;
+use App\Modules\Storefront\Http\Controllers\StorefrontCatalogController;
+use App\Modules\Storefront\Http\Controllers\StorefrontProductController;
 use App\Modules\Stores\Http\Controllers\StoreController;
 use App\Modules\Stores\Http\Controllers\StoreSettingsController;
 use App\Modules\Tax\Http\Controllers\TaxController;
@@ -69,6 +73,21 @@ Route::get('/', function () {
         ? to_route('admin.dashboard')
         : to_route('verification.notice');
 });
+
+Route::middleware(['storefront.development', 'storefront.public'])
+    ->prefix('/tienda/{publicHandle}')
+    ->where(['publicHandle' => '[a-z0-9]+(?:-[a-z0-9]+)*'])
+    ->name('storefront.development.')
+    ->group(function () {
+        Route::get('/', StorefrontHomeController::class)->name('home');
+        Route::get('/productos', StorefrontCatalogController::class)->name('products.index');
+        Route::get('/categorias/{categorySlug}', StorefrontCatalogController::class)
+            ->where('categorySlug', '[a-z0-9]+(?:-[a-z0-9]+)*')->name('categories.show');
+        Route::get('/productos/{listingSlug}', StorefrontProductController::class)
+            ->where('listingSlug', '[a-z0-9]+(?:-[a-z0-9]+)*')->name('products.show');
+        Route::get('/media/{checksum}/{variant}', PublicMediaController::class)
+            ->where(['checksum' => '[a-f0-9]{64}', 'variant' => 'thumbnail|medium'])->name('media');
+    });
 
 Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');

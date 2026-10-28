@@ -28,6 +28,7 @@ use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Pricing\Domain\Models\PriceList;
 use App\Modules\Promotions\Domain\Models\Promotion;
 use App\Modules\Stores\Domain\Models\Store;
+use App\Modules\Stores\Domain\Models\StorefrontPublication;
 use App\Modules\Stores\Domain\Models\StoreSettings;
 use App\Modules\Tax\Domain\Models\TaxCategory;
 use App\Modules\Tax\Domain\Models\TaxRate;
@@ -68,6 +69,11 @@ class Tenant extends Model
     public function storeSettings(): HasMany
     {
         return $this->hasMany(StoreSettings::class);
+    }
+
+    public function storefrontPublications(): HasMany
+    {
+        return $this->hasMany(StorefrontPublication::class);
     }
 
     /** @return HasMany<Product, $this> */

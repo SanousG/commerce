@@ -2,6 +2,7 @@
 
 use App\Modules\Access\Providers\AccessServiceProvider;
 use App\Modules\Fiscal\Providers\FiscalServiceProvider;
+use App\Modules\Storefront\Providers\StorefrontServiceProvider;
 use App\Modules\Stores\Providers\StoresServiceProvider;
 use App\Modules\Tenancy\Providers\TenancyServiceProvider;
 use App\Providers\AppServiceProvider;
@@ -11,5 +12,6 @@ return [
     TenancyServiceProvider::class,
     AccessServiceProvider::class,
     StoresServiceProvider::class,
+    StorefrontServiceProvider::class,
     FiscalServiceProvider::class,
 ];

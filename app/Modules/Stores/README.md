@@ -52,3 +52,19 @@ courier behavior are deliberately not stored here. The current Checkout and
 Order contracts do not support those preferences, and an inert flag would
 misrepresent behavior. Fiscal issuer identity remains exclusively owned by
 `FiscalIssuerProfile`.
+
+## Public Storefront publication
+
+`StorefrontPublication` is the one-to-one, Store-owned public identity used by
+the Storefront delivery layer. Its `public_handle` is normalized and globally
+unique; it is deliberately separate from `Store.slug`, whose uniqueness is
+only Tenant-wide. A Store has no publication row by default. Preparing a row
+always creates it as `UNPUBLISHED`, and publication requires a separate,
+explicit operation. Database constraints keep publication status and
+`published_at` coherent; foreign keys plus a PostgreSQL trigger preserve the
+Tenant/Store boundary independently of older migration indexes.
+
+The temporary `/tienda/{publicHandle}` route is not a domain model. It is
+restricted to configured local/testing hosts and environments. Future custom
+domains may resolve to the same Storefront context without changing this
+publication contract.

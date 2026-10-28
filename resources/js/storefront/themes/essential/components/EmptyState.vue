@@ -1,0 +1,2 @@
+<script setup lang="ts">defineProps<{ title: string; description: string }>();</script>
+<template><div class="rounded-xl border border-dashed border-[var(--sf-border)] bg-white px-6 py-16 text-center"><div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-xl" aria-hidden="true">⌕</div><h2 class="mt-4 text-xl font-semibold text-slate-950">{{ title }}</h2><p class="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">{{ description }}</p><slot /></div></template>
