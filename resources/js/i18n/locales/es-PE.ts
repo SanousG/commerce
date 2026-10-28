@@ -320,7 +320,24 @@ export default {
             "save": "Guardar configuración",
             "saving": "Guardando configuración…",
             "saveHelp": "Todas las secciones se guardan juntas en una transacción protegida.",
-            "processingHelp": "Guardando una sola vez; el envío duplicado está deshabilitado."
+            "processingHelp": "Guardando una sola vez; el envío duplicado está deshabilitado.",
+            "storefront": {
+                "section": "06 · Publicación",
+                "title": "Storefront público",
+                "help": "La publicación controla la visibilidad pública sin cambiar la configuración de dominios.",
+                "status": "Estado actual",
+                "handle": "Identificador público",
+                "theme": "Plantilla activa",
+                "open": "Abrir tienda pública",
+                "publish": "Publicar tienda",
+                "unpublish": "Despublicar tienda",
+                "processing": "Procesando…",
+                "publishConfirm": "¿Publicar esta tienda para acceso público?",
+                "unpublishConfirm": "¿Despublicar esta tienda y retirar su acceso público?",
+                "published": "Storefront publicado.",
+                "unpublished": "Storefront despublicado.",
+                "notPrepared": "Esta tienda aún requiere la reconciliación administrativa de Storefront."
+            }
         }
     },
     "access": {

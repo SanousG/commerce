@@ -2,6 +2,7 @@
 
 namespace App\Modules\Stores\Application;
 
+use App\Modules\Storefront\Application\ProvisionStorefrontPublication;
 use App\Modules\Stores\Domain\Enums\StoreStatus;
 use App\Modules\Stores\Domain\Models\StoreSettings;
 use App\Modules\Tenancy\Domain\Models\Tenant;
@@ -10,6 +11,8 @@ use Illuminate\Support\Str;
 
 class CreateStore
 {
+    public function __construct(private readonly ProvisionStorefrontPublication $provisionStorefront) {}
+
     /**
      * @param  array{name: string, currency: string, timezone: string, locale: string}  $attributes
      */
@@ -30,6 +33,7 @@ class CreateStore
                 'social_links' => StoreSettings::DEFAULT_SOCIAL_LINKS,
                 'primary_color' => '#17211B',
             ]);
+            $this->provisionStorefront->handle($store);
 
             return new StoreCreationResult($store, $isFirstStore);
         });

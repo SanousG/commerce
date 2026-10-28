@@ -2,12 +2,72 @@
 
 namespace Tests\Feature\Storefront;
 
+use App\Modules\Storefront\Application\ProvisionStorefrontPublication;
 use App\Modules\Stores\Domain\Enums\StorefrontPublicationStatus;
 use App\Modules\Stores\Domain\Models\StorefrontPublication;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 
 class StorefrontProvisioningTest extends StorefrontFeatureTestCase
 {
+    public function test_reconciliation_prepares_missing_stores_and_is_idempotent(): void
+    {
+        $tenant = $this->createTenant();
+        $first = $this->createStore($tenant, attributes: ['name' => 'Legacy Store']);
+        $second = $this->createStore($tenant, attributes: ['name' => 'Legacy Store']);
+
+        $this->artisan('storefront:reconcile', ['--tenant' => $tenant->getKey()])
+            ->expectsOutputToContain('Reconciled 2')
+            ->assertSuccessful();
+        $this->artisan('storefront:reconcile', ['--tenant' => $tenant->getKey()])
+            ->expectsOutputToContain('Reconciled 0')
+            ->assertSuccessful();
+
+        $this->assertEqualsCanonicalizing(
+            ['legacy-store', 'legacy-store-2'],
+            StorefrontPublication::query()->whereIn('store_id', [$first->getKey(), $second->getKey()])
+                ->pluck('public_handle')->all(),
+        );
+        $this->assertSame(0, StorefrontPublication::query()
+            ->where('status', StorefrontPublicationStatus::Published)->count());
+    }
+
+    public function test_reconciliation_preserves_existing_handle_and_publication_state(): void
+    {
+        $tenant = $this->createTenant();
+        $publishedStore = $this->createStore($tenant, attributes: ['name' => 'Published']);
+        $missingStore = $this->createStore($tenant, attributes: ['name' => 'Missing']);
+        $existing = $this->publish($publishedStore, 'keep-this-handle');
+
+        $this->artisan('storefront:reconcile')->assertSuccessful();
+
+        $this->assertSame('keep-this-handle', $existing->refresh()->public_handle);
+        $this->assertSame(StorefrontPublicationStatus::Published, $existing->status);
+        $this->assertSame(StorefrontPublicationStatus::Unpublished, $missingStore
+            ->storefrontPublication()->sole()->status);
+    }
+
+    public function test_handle_allocation_holds_a_cross_connection_transaction_lock(): void
+    {
+        $tenant = $this->createTenant();
+        $store = $this->createStore($tenant, attributes: ['name' => 'Concurrent Store']);
+        config(['database.connections.pgsql_concurrent' => config('database.connections.pgsql')]);
+
+        DB::beginTransaction();
+
+        try {
+            app(ProvisionStorefrontPublication::class)->handle($store);
+            $result = DB::connection('pgsql_concurrent')->selectOne(
+                "SELECT pg_try_advisory_xact_lock(hashtext('storefront-public-handle-allocation')) AS acquired",
+            );
+
+            $this->assertFalse((bool) $result->acquired);
+        } finally {
+            DB::rollBack();
+            DB::disconnect('pgsql_concurrent');
+        }
+    }
+
     public function test_prepare_is_explicit_idempotent_and_does_not_publish(): void
     {
         $tenant = $this->createTenant();

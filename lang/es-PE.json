@@ -41,5 +41,7 @@
     "You are receiving this email because we received a password reset request for your account.": "Recibes este correo porque solicitaste restablecer la contraseña de tu cuenta.",
     "Reset Password": "Restablecer contraseña",
     "This password reset link will expire in :count minutes.": "Este enlace para restablecer tu contraseña vencerá en :count minutos.",
-    "If you did not request a password reset, no further action is required.": "Si no solicitaste restablecer tu contraseña, no necesitas realizar ninguna acción."
+    "If you did not request a password reset, no further action is required.": "Si no solicitaste restablecer tu contraseña, no necesitas realizar ninguna acción.",
+    "The Storefront can only be published when its company and Store are active and prepared.": "El Storefront solo puede publicarse cuando su empresa y tienda están activas y preparadas.",
+    "The Storefront could not be unpublished.": "No se pudo despublicar el Storefront."
 }

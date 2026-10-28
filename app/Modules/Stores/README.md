@@ -12,6 +12,11 @@ context so middleware cannot continue operating with a stale Store.
 Company identity, team membership and invitations do not belong to a Store.
 Changing Stores therefore never changes the Team page.
 
+New Stores are provisioned atomically with an `UNPUBLISHED` Storefront
+publication. Public handles are globally allocated by the Storefront
+application service under a PostgreSQL advisory transaction lock. Publication
+remains an explicit `stores.update` action in Store Settings.
+
 ## Store settings
 
 `StoreSettings` is a one-to-one, Store-owned extension for merchant-facing

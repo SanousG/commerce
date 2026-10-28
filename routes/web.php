@@ -49,9 +49,9 @@ use App\Modules\Promotions\Http\Controllers\PromotionController;
 use App\Modules\Returns\Http\Controllers\ExchangeController;
 use App\Modules\Returns\Http\Controllers\ReturnController;
 use App\Modules\Returns\Http\Controllers\ReturnItemController;
-use App\Modules\Storefront\Http\Controllers\StorefrontHomeController;
 use App\Modules\Storefront\Http\Controllers\PublicMediaController;
 use App\Modules\Storefront\Http\Controllers\StorefrontCatalogController;
+use App\Modules\Storefront\Http\Controllers\StorefrontHomeController;
 use App\Modules\Storefront\Http\Controllers\StorefrontProductController;
 use App\Modules\Stores\Http\Controllers\StoreController;
 use App\Modules\Stores\Http\Controllers\StoreSettingsController;
@@ -167,6 +167,10 @@ Route::middleware(['auth', 'auth.session', 'verified'])
                 ->middleware('can:stores.view')->whereUuid('store')->name('stores.settings.show');
             Route::patch('/stores/{store}/settings', [StoreSettingsController::class, 'update'])
                 ->middleware('can:stores.update')->whereUuid('store')->name('stores.settings.update');
+            Route::post('/stores/{store}/settings/storefront/publish', [StoreSettingsController::class, 'publish'])
+                ->middleware('can:stores.update')->whereUuid('store')->name('stores.settings.storefront.publish');
+            Route::post('/stores/{store}/settings/storefront/unpublish', [StoreSettingsController::class, 'unpublish'])
+                ->middleware('can:stores.update')->whereUuid('store')->name('stores.settings.storefront.unpublish');
 
             Route::get('/settings', [AdminSettingsController::class, 'index'])
                 ->middleware('can:settings.view')->name('settings.index');

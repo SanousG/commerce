@@ -320,7 +320,24 @@ export default {
             "save": "Save Store settings",
             "saving": "Saving settings…",
             "saveHelp": "All sections are saved together in one protected transaction.",
-            "processingHelp": "Saving once; duplicate submission is disabled."
+            "processingHelp": "Saving once; duplicate submission is disabled.",
+            "storefront": {
+                "section": "06 · Publication",
+                "title": "Public Storefront",
+                "help": "Publication controls public visibility without changing domain configuration.",
+                "status": "Current status",
+                "handle": "Public identifier",
+                "theme": "Active theme",
+                "open": "Open public Store",
+                "publish": "Publish Store",
+                "unpublish": "Unpublish Store",
+                "processing": "Processing…",
+                "publishConfirm": "Publish this Store for public access?",
+                "unpublishConfirm": "Unpublish this Store and remove public access?",
+                "published": "Storefront published.",
+                "unpublished": "Storefront unpublished.",
+                "notPrepared": "This Store still requires administrative Storefront reconciliation."
+            }
         }
     },
     "access": {

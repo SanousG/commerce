@@ -30,6 +30,10 @@ Las dimensiones son exportaciones de alta densidad; se implementaron breakpoints
 
 No se creó tabla, marketplace, licencia, cobro o editor de themes. Como Store aún no tiene selección persistida, `essential` es siempre el theme efectivo.
 
+FASE 29.1 presenta este mismo theme efectivo como **Essential** en Store
+Settings. El aprovisionamiento automático no añade selección persistida ni
+altera el registro de themes.
+
 ## 3. Endpoints públicos
 
 Todos conservan los middlewares `storefront.development` y `storefront.public` de SF-01: sólo local/testing, flag explícito y Host permitido.

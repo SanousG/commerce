@@ -5,8 +5,10 @@ namespace Tests\Feature\Stores;
 use App\Models\User;
 use App\Modules\Access\Domain\Enums\SystemRole;
 use App\Modules\Stores\Application\StoreContext;
+use App\Modules\Stores\Domain\Enums\StorefrontPublicationStatus;
 use App\Modules\Stores\Domain\Enums\StoreStatus;
 use App\Modules\Stores\Domain\Models\Store;
+use App\Modules\Stores\Domain\Models\StorefrontPublication;
 use App\Modules\Tenancy\Application\TenantContext;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -38,6 +40,32 @@ class StoreCreationTest extends StoreFeatureTestCase
         $this->assertSame($store->getKey(), session(StoreContext::SESSION_KEY));
         $this->assertTrue($tenant->stores()->whereKey($store->getKey())->exists());
         $this->assertTrue($store->tenant->is($tenant));
+        $publication = $store->storefrontPublication()->sole();
+        $this->assertSame(StorefrontPublicationStatus::Unpublished, $publication->status);
+        $this->assertSame('lima-central', $publication->public_handle);
+        $this->assertNull($publication->published_at);
+    }
+
+    public function test_automatic_public_handles_are_global_collision_safe_and_never_publish(): void
+    {
+        $firstUser = User::factory()->create();
+        $firstTenant = $this->createTenantFor($firstUser);
+        $secondUser = User::factory()->create();
+        $secondTenant = $this->createTenantFor($secondUser);
+
+        foreach ([[$firstUser, $firstTenant], [$secondUser, $secondTenant]] as [$user, $tenant]) {
+            $this->actingAs($user)
+                ->withSession([TenantContext::SESSION_KEY => $tenant->getKey()])
+                ->post(route('admin.stores.store'), $this->validPayload('Same Store'))
+                ->assertRedirect();
+        }
+
+        $this->assertEqualsCanonicalizing(
+            ['same-store', 'same-store-2'],
+            StorefrontPublication::query()->pluck('public_handle')->all(),
+        );
+        $this->assertSame(0, StorefrontPublication::query()
+            ->where('status', StorefrontPublicationStatus::Published)->count());
     }
 
     public function test_admin_can_create_store(): void

@@ -41,9 +41,11 @@ La tabla `storefront_publications` contiene una relación 1:1 con Store:
 reservados. La base de datos repite las garantías críticas de formato,
 unicidad y coherencia de estado.
 
-Crear una Store no crea una publicación. `storefront:prepare` crea la relación
-como `UNPUBLISHED`; publicar es una operación distinta. Los tres comandos son
-idempotentes cuando se repite exactamente la misma intención.
+Desde FASE 29.1, crear una Store crea también su publicación `UNPUBLISHED` en
+la misma transacción. La asignación automática del handle está serializada para
+resolver colisiones globales. `storefront:prepare` se conserva para
+mantenimiento manual; publicar continúa siendo una operación distinta e
+idempotente.
 
 ## 3. Ruta y política de hosts
 
@@ -105,11 +107,14 @@ modifican el layout administrativo. No renderizan imágenes privadas.
 
 ## 6. Aprovisionar una Store en desarrollo
 
-Después de revisar y ejecutar manualmente la migración en el entorno elegido:
+Una Store nueva ya queda preparada. El cliente abre ADM-012 y usa **Publicar
+tienda**; no necesita comandos. Para Stores históricas sin publicación, un
+administrador puede ejecutar una reconciliación masiva e idempotente:
 
 ```bash
-php artisan storefront:prepare <tenant-uuid> <store-uuid> mi-tienda
-php artisan storefront:publish <tenant-uuid> <store-uuid>
+php artisan storefront:reconcile
+# o limitar el alcance:
+php artisan storefront:reconcile --tenant=<tenant-uuid>
 ```
 
 Habilitar temporalmente la ruta local:
@@ -119,15 +124,10 @@ STOREFRONT_DEVELOPMENT_ROUTE_ENABLED=true
 STOREFRONT_DEVELOPMENT_HOSTS=localhost,127.0.0.1,::1
 ```
 
-Visitar `/tienda/mi-tienda`. Para retirar el acceso:
-
-```bash
-php artisan storefront:unpublish <tenant-uuid> <store-uuid>
-```
-
-Los comandos exigen la combinación exacta de Tenant y Store activos. Preparar
-con otro handle una Store ya preparada o reutilizar un handle global devuelve
-error y no cambia la publicación existente.
+Los comandos `prepare`, `publish` y `unpublish` permanecen disponibles para
+mantenimiento. Los comandos de publicación exigen la combinación exacta de
+Tenant y Store activos. La administración habitual se realiza desde Store
+Settings con `stores.update`.
 
 ## 7. Migración
 

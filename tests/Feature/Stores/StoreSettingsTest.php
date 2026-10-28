@@ -7,7 +7,10 @@ use App\Modules\Access\Domain\Enums\SystemRole;
 use App\Modules\Media\Domain\Enums\MediaStatus;
 use App\Modules\Media\Domain\Enums\MediaType;
 use App\Modules\Media\Domain\Models\MediaAsset;
+use App\Modules\Storefront\Application\ProvisionStorefrontPublication;
 use App\Modules\Stores\Application\GetStoreSettings;
+use App\Modules\Stores\Domain\Enums\StorefrontPublicationStatus;
+use App\Modules\Stores\Domain\Enums\StoreStatus;
 use App\Modules\Stores\Domain\Models\Store;
 use App\Modules\Tenancy\Application\TenantContext;
 use App\Modules\Tenancy\Domain\Models\Tenant;
@@ -22,6 +25,22 @@ class StoreSettingsTest extends StoreFeatureTestCase
         parent::setUp();
         config(['media.disk' => 'store-settings-media-test']);
         Storage::fake('store-settings-media-test');
+    }
+
+    public function test_storefront_publication_routes_require_web_session_csrf_and_update_authorization(): void
+    {
+        foreach (['publish', 'unpublish'] as $action) {
+            $route = app('router')->getRoutes()
+                ->getByName("admin.stores.settings.storefront.{$action}");
+
+            $this->assertSame(['POST'], $route->methods());
+            $middleware = $route->gatherMiddleware();
+            $this->assertContains('web', $middleware);
+            $this->assertContains('auth', $middleware);
+            $this->assertContains('verified', $middleware);
+            $this->assertContains('tenant', $middleware);
+            $this->assertContains('can:stores.update', $middleware);
+        }
     }
 
     public function test_existing_store_gets_defaults_and_owner_can_read_and_update_settings(): void
@@ -79,6 +98,80 @@ class StoreSettingsTest extends StoreFeatureTestCase
             ->assertForbidden();
 
         $this->assertDatabaseMissing('store_settings', ['store_id' => $memberStore->getKey(), 'display_name' => 'Forbidden']);
+    }
+
+    public function test_owner_can_view_publish_and_unpublish_storefront_from_settings(): void
+    {
+        config([
+            'storefront.development_route_enabled' => true,
+            'storefront.development_hosts' => ['localhost'],
+        ]);
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $store = $this->createStore($tenant);
+        $publication = app(ProvisionStorefrontPublication::class)->handle($store);
+        $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
+
+        $this->get(route('admin.stores.settings.show', $store))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('storefront.status', StorefrontPublicationStatus::Unpublished->value)
+                ->where('storefront.public_handle', $publication->public_handle)
+                ->where('storefront.theme', 'Essential')
+                ->where('storefront.public_url', null));
+
+        $this->post(route('admin.stores.settings.storefront.publish', $store))
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Storefront published.');
+        $this->assertSame(StorefrontPublicationStatus::Published, $publication->refresh()->status);
+        $this->assertNotNull($publication->published_at);
+
+        $this->get(route('admin.stores.settings.show', $store))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('storefront.public_url', '/tienda/'.$publication->public_handle));
+
+        $this->post(route('admin.stores.settings.storefront.unpublish', $store))
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Storefront unpublished.');
+        $this->assertSame(StorefrontPublicationStatus::Unpublished, $publication->refresh()->status);
+        $this->assertNull($publication->published_at);
+    }
+
+    public function test_storefront_publication_actions_enforce_rbac_and_tenant_scope(): void
+    {
+        $member = User::factory()->create();
+        $memberTenant = $this->createTenantFor($member, SystemRole::Member);
+        $memberStore = $this->createStore($memberTenant);
+        app(ProvisionStorefrontPublication::class)->handle($memberStore);
+
+        $this->actingAs($member)->withSession([TenantContext::SESSION_KEY => $memberTenant->getKey()])
+            ->post(route('admin.stores.settings.storefront.publish', $memberStore))
+            ->assertForbidden();
+
+        $owner = User::factory()->create();
+        $ownerTenant = $this->createTenantFor($owner);
+        $this->actingAs($owner)->withSession([TenantContext::SESSION_KEY => $ownerTenant->getKey()])
+            ->post(route('admin.stores.settings.storefront.publish', $memberStore))
+            ->assertNotFound();
+
+        $this->assertSame(StorefrontPublicationStatus::Unpublished, $memberStore
+            ->storefrontPublication()->sole()->status);
+    }
+
+    public function test_inactive_store_cannot_be_published_from_settings(): void
+    {
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $store = $this->createStore($tenant);
+        $publication = app(ProvisionStorefrontPublication::class)->handle($store);
+        $store->update(['status' => StoreStatus::Inactive]);
+
+        $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()])
+            ->post(route('admin.stores.settings.storefront.publish', $store))
+            ->assertRedirect()
+            ->assertSessionHasErrors('storefront');
+
+        $this->assertSame(StorefrontPublicationStatus::Unpublished, $publication->refresh()->status);
     }
 
     public function test_cross_tenant_store_cannot_be_read_or_updated(): void

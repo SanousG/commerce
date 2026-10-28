@@ -22,12 +22,14 @@ interface StoreSettingsData {
     primary_color: string; secondary_color: string | null; updated_at: string;
     logo: SelectedMedia | null; favicon: SelectedMedia | null;
 }
+interface StorefrontData { status: 'PUBLISHED' | 'UNPUBLISHED'; public_handle: string; theme: 'Essential'; public_url: string | null }
 
 const props = defineProps<{
     store: StoreData;
     settings: StoreSettingsData;
     options: { currencies: string[]; countries: Array<{ value: string; label: string }> };
     mediaLimits: { max_image_mb: number };
+    storefront: StorefrontData | null;
 }>();
 const page = usePage<PageProps>();
 const { t } = useI18n();
@@ -38,7 +40,10 @@ const statusMessage = computed(() => {
     const status = page.props.status;
     if (!status) return null;
 
-    return status === 'Store settings saved.' ? t('stores.flash.saved') : status;
+    if (status === 'Store settings saved.') return t('stores.flash.saved');
+    if (status === 'Storefront published.') return t('stores.settingsPage.storefront.published');
+    if (status === 'Storefront unpublished.') return t('stores.settingsPage.storefront.unpublished');
+    return status;
 });
 const picker = ref<'logo' | 'favicon' | null>(null);
 const logo = ref<SelectedMedia | null>(props.settings.logo);
@@ -59,6 +64,18 @@ const form = useForm({
     primary_color: props.settings.primary_color, secondary_color: props.settings.secondary_color,
     store_updated_at: props.store.updated_at, settings_updated_at: props.settings.updated_at,
 });
+const publicationForm = useForm<{ storefront: null }>({ storefront: null });
+const setStorefrontPublication = (publish: boolean) => {
+    if (!canUpdate.value || !props.storefront || publicationForm.processing) return;
+    const message = publish
+        ? t('stores.settingsPage.storefront.publishConfirm')
+        : t('stores.settingsPage.storefront.unpublishConfirm');
+    if (!window.confirm(message)) return;
+
+    publicationForm.post(`/admin/stores/${props.store.id}/settings/storefront/${publish ? 'publish' : 'unpublish'}`, {
+        preserveScroll: true,
+    });
+};
 const pickerSelectedIds = computed(() => {
     const selectedId = picker.value === 'logo' ? form.logo_media_asset_id : form.favicon_media_asset_id;
     return selectedId ? [selectedId] : [];
@@ -98,6 +115,24 @@ const save = () => {
             <p v-if="statusMessage" role="status" class="rounded-md border border-admin-success-border bg-admin-success-bg px-4 py-3 text-sm font-medium text-admin-success">{{ statusMessage }}</p>
             <div v-if="!canUpdate" class="rounded-md border border-admin-warning-border bg-admin-warning-bg px-4 py-3 text-sm text-amber-800"><p class="font-semibold">{{ t('stores.settingsPage.readOnlyTitle') }}</p><p class="mt-0.5 text-xs leading-5">{{ t('stores.settingsPage.readOnlyHelp') }}</p></div>
             <div v-else class="rounded-md border border-admin-info-border bg-admin-info-bg px-4 py-3 text-xs leading-5 text-admin-info"><p class="font-semibold">{{ t('stores.settingsPage.concurrencyTitle') }}</p><p class="mt-0.5">{{ t('stores.settingsPage.concurrencyHelp') }}</p></div>
+
+            <section class="admin-card grid gap-4 p-4 sm:p-5" aria-labelledby="storefront-heading">
+                <div class="border-b border-admin-border pb-4"><p class="admin-label">{{ t('stores.settingsPage.storefront.section') }}</p><h2 id="storefront-heading" class="mt-1 text-base font-semibold text-admin-primary">{{ t('stores.settingsPage.storefront.title') }}</h2><p class="mt-1 text-xs leading-5 text-admin-neutral">{{ t('stores.settingsPage.storefront.help') }}</p></div>
+                <template v-if="storefront">
+                    <dl class="grid gap-3 text-sm sm:grid-cols-3">
+                        <div><dt class="admin-label">{{ t('stores.settingsPage.storefront.status') }}</dt><dd class="mt-1 font-semibold">{{ t(`status.${storefront.status}`) }}</dd></div>
+                        <div><dt class="admin-label">{{ t('stores.settingsPage.storefront.handle') }}</dt><dd class="mt-1 break-all font-mono">{{ storefront.public_handle }}</dd></div>
+                        <div><dt class="admin-label">{{ t('stores.settingsPage.storefront.theme') }}</dt><dd class="mt-1 font-semibold">{{ storefront.theme }}</dd></div>
+                    </dl>
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <a v-if="storefront.public_url" :href="storefront.public_url" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-9 items-center justify-center rounded-md border border-admin-border-strong bg-white px-4 text-sm font-semibold">{{ t('stores.settingsPage.storefront.open') }}</a>
+                        <button v-if="canUpdate && storefront.status === 'UNPUBLISHED'" type="button" :disabled="publicationForm.processing" class="min-h-9 rounded-md bg-admin-primary px-4 text-sm font-semibold text-white disabled:opacity-60" @click="setStorefrontPublication(true)">{{ publicationForm.processing ? t('stores.settingsPage.storefront.processing') : t('stores.settingsPage.storefront.publish') }}</button>
+                        <button v-if="canUpdate && storefront.status === 'PUBLISHED'" type="button" :disabled="publicationForm.processing" class="min-h-9 rounded-md border border-admin-danger px-4 text-sm font-semibold text-admin-danger disabled:opacity-60" @click="setStorefrontPublication(false)">{{ publicationForm.processing ? t('stores.settingsPage.storefront.processing') : t('stores.settingsPage.storefront.unpublish') }}</button>
+                    </div>
+                    <FieldError id="storefront-error" :message="publicationForm.errors['storefront']" />
+                </template>
+                <p v-else class="text-sm text-admin-neutral">{{ t('stores.settingsPage.storefront.notPrepared') }}</p>
+            </section>
 
             <form class="grid gap-4" @submit.prevent="save">
                 <fieldset :disabled="!canUpdate || form.processing" class="admin-card grid min-w-0 gap-4 p-4 disabled:opacity-75 sm:grid-cols-2 sm:p-5">

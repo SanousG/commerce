@@ -2,24 +2,18 @@
 
 namespace App\Modules\Storefront\Http\Middleware;
 
+use App\Modules\Storefront\Application\DevelopmentStorefrontAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 final class EnsureDevelopmentStorefrontRoute
 {
+    public function __construct(private readonly DevelopmentStorefrontAccess $access) {}
+
     public function handle(Request $request, Closure $next): Response
     {
-        $enabled = (bool) config('storefront.development_route_enabled', false);
-        $environmentAllowed = in_array(
-            app()->environment(),
-            config('storefront.development_route_environments', []),
-            true,
-        );
-        $host = strtolower(rtrim($request->getHost(), '.'));
-        $hostAllowed = in_array($host, config('storefront.development_hosts', []), true);
-
-        abort_unless($enabled && $environmentAllowed && $hostAllowed, 404);
+        abort_unless($this->access->allows($request), 404);
 
         return $next($request);
     }
