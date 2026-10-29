@@ -43,5 +43,8 @@
     "This password reset link will expire in :count minutes.": "This password reset link will expire in :count minutes.",
     "If you did not request a password reset, no further action is required.": "If you did not request a password reset, no further action is required.",
     "The Storefront can only be published when its company and Store are active and prepared.": "The Storefront can only be published when its company and Store are active and prepared.",
-    "The Storefront could not be unpublished.": "The Storefront could not be unpublished."
+    "The Storefront could not be unpublished.": "The Storefront could not be unpublished.",
+    "Item added to cart.": "Item added to cart.",
+    "The cart could not be updated. Review availability and quantity.": "The cart could not be updated. Review availability and quantity.",
+    "Store pickup and cash payment on pickup are not currently available.": "Store pickup and cash payment on pickup are not currently available."
 }

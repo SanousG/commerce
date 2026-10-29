@@ -22,12 +22,24 @@ class CheckoutInventoryAllocator
     public function __construct(private readonly InventoryLevelLocker $levels) {}
 
     /** @param Collection<int, CheckoutLine> $lines */
-    public function reserve(Tenant $tenant, Collection $lines, DateTimeInterface $expiresAt): void
+    public function reserve(
+        Tenant $tenant,
+        Collection $lines,
+        DateTimeInterface $expiresAt,
+        ?string $inventoryLocationId = null,
+    ): void
     {
-        $locations = $tenant->inventoryLocations()->where('status', InventoryLocationStatus::Active)
-            ->orderBy('id')->lockForUpdate()->get();
+        $locationsQuery = $tenant->inventoryLocations()->where('status', InventoryLocationStatus::Active);
+        if ($inventoryLocationId !== null) {
+            $locationsQuery->whereKey($inventoryLocationId);
+        }
+        $locations = $locationsQuery->orderBy('id')->lockForUpdate()->get();
         if ($locations->isEmpty()) {
-            throw ValidationException::withMessages(['inventory' => 'No active inventory location is available.']);
+            throw ValidationException::withMessages([
+                'inventory' => $inventoryLocationId === null
+                    ? 'No active inventory location is available.'
+                    : 'The selected pickup inventory location is not available.',
+            ]);
         }
 
         $variantIds = $lines->pluck('product_variant_id')->unique()->sort()->values();

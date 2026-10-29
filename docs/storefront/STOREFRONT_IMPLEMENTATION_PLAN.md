@@ -166,6 +166,9 @@ Inicio + catálogo/búsqueda/categorías + detalle + contacto, compartiendo el m
 
 ## SF-03 — Carrito invitado seguro
 
+**Estado:** implementado en FASE 30. Contrato detallado en
+`docs/storefront/SF-03_PUBLIC_CART.md`.
+
 **Objetivo**
 Permitir construir y recuperar en el mismo navegador un carrito aislado por Store.
 
@@ -182,16 +185,18 @@ Storefront, Cart, Listings, Pricing, Promotions, Inventory, Tax, Stores.
 
 **Backend necesario**
 
-- Adaptador de posesión por token opaco; preferible digest persistido.
-- Cookie cifrada host-only y namespacing seguro para ruta local.
-- Form Requests públicos y rate limits.
+- Adaptador de posesión por token opaco existente, Store-scoped; el digest
+  persistido queda como endurecimiento futuro explícito.
+- Cookie Laravel cifrada, HttpOnly, host-only y namespacing seguro para ruta
+  local, con `Secure` bajo HTTPS y `SameSite=Lax`.
+- Validación pública, CSRF, rate limit, bloqueo de sesión y `mutation_id`.
 - Re-resolución Store+Listing+Variant antes de servicios Cart.
 - DTO de `CartSummary`; traducción de códigos de issue a mensajes públicos sin ocultar el código interno en logs seguros.
 - Rotación/revocación al expirar o convertir.
 
 **Frontend necesario**
 
-- Drawer/indicador opcional y página Carrito.
+- Indicador real en Header, agregado desde Product Detail y página Carrito.
 - Estados: cargando, vacío, agotado, despublicado, precio cambiado y configuración fiscal inválida.
 - Las cantidades son input; importes retornan del servidor.
 
@@ -206,7 +211,8 @@ Storefront, Cart, Listings, Pricing, Promotions, Inventory, Tax, Stores.
 
 **Riesgos**
 
-- El token actual se persiste en claro.
+- El token actual se persiste en claro en PostgreSQL por el contrato heredado;
+  nunca se expone a Vue y viaja en cookie cifrada.
 - Cart fixation o credencial filtrada a logs.
 - Mostrar preview válido y perder stock antes del Checkout; debe explicarse que la reserva ocurre después.
 - Configuración Tax incompleta bloquea un carrito válido comercialmente.
@@ -225,20 +231,27 @@ Integración “agregar al carrito” del detalle + indicador/drawer + página C
 
 ## SF-04 — Checkout invitado y creación idempotente de Order
 
+**Estado confirmado (2026-10-28): SF-04.2 implementado hasta preparación segura
+de pickup.** El flujo congela un punto autorizado por Store, `CASH + COD + NONE`
+y reserva sólo en la ubicación tenant-owned configurada. No solicita shipping,
+no crea Payment y no comunica envío gratis. La Order pública sigue bloqueada
+para SF-04.3. Ver `SF-04_PUBLIC_CHECKOUT.md`,
+`SF-04_1_COMMERCIAL_READINESS.md` y `SF-04_2_PICKUP_AND_PAYMENT.md`.
+
 **Objetivo**
 Convertir un Cart válido en una Order inmutable preservando validaciones, snapshots y reservas.
 
 **Precondiciones de producto**
 
-- Decidir inventario tenant-wide versus ubicaciones por Store.
-- Decidir Shipping/Pickup y confirmar que shipping cero es aceptable o implementar su dominio en una fase separada.
-- Decidir qué término de pago permite colocar la orden.
+- Aprobado para este MVP: inventario tenant-wide con una ubicación activa configurada por Store para pickup.
+- Aprobado para este MVP: Pickup sin servicio/cargo de shipping.
+- Aprobado para este MVP: método esperado CASH, términos COD y depósito NONE.
 - Aprobar política de PII, consentimiento y retención.
 
 **Alcance**
 
 - Inicio/reanudación de un Checkout operativo por Cart.
-- Contacto y snapshots shipping/billing.
+- Contacto, pickup autorizado y snapshot billing opcional.
 - Revisión server-side.
 - Preparación READY, reserva y expiración.
 - Creación idempotente de Order.
@@ -259,7 +272,7 @@ Storefront, Cart, Checkout, Orders, Inventory, Tax, Pricing, Promotions, Custome
 
 **Frontend necesario**
 
-- Checkout agrupado: contacto, entrega/dirección, facturación, revisión y submit.
+- Checkout agrupado: contacto, punto de recojo, facturación opcional, revisión y submit.
 - Estado de reserva/expiración y recuperación ante errores reintentables.
 - Nunca marcar éxito sólo por estado local; obtener Order desde servidor.
 
@@ -279,7 +292,7 @@ Storefront, Cart, Checkout, Orders, Inventory, Tax, Pricing, Promotions, Custome
 - Aceptar orden sin método de pago comprensible.
 - Reserva de 15 minutos y mala UX ante expiración.
 - Shipping cero puede ser legal/comercialmente incorrecto.
-- La asignación usa cualquier almacén activo del Tenant.
+- Una ubicación pickup puede quedar sin stock aunque exista stock en otra ubicación; no hay fallback arbitrario.
 
 **Criterios de aceptación**
 

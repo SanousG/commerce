@@ -6,6 +6,7 @@ Payments owns collection state and the append-only operational ledger. Orders re
 
 - `PaymentMethod` is the channel (`ONLINE`, `BANK_TRANSFER`, `CASH`). Provider is separate and currently controlled by `PaymentProvider`; adding a provider requires an explicit enum/schema migration so unvalidated plugin identifiers cannot enter the ledger.
 - `COD` is a payment term, not a method. `OrderPaymentPlan` snapshots `PREPAID` or `COD`, deposit configuration, and amounts. Existing orders have a virtual `PREPAID` default until terms are explicitly configured.
+- Public pickup requires expected method `CASH`, terms `COD`, and deposit `NONE/0.0000`. Preparing Checkout creates no Payment or capture. `OrderPaymentPlan.expected_method` is nullable for historical compatibility; SF-04.3 will copy the frozen expectation into the public Order plan.
 - Manual captures equal the full `Payment.amount`. Partial order payment uses multiple Payments; partial capture inside one Payment is deferred.
 - Captured and remaining totals derive only from successful `CAPTURE` transactions. `Payment.status` is an operational projection, not the financial source of truth.
 - Locks are acquired in this order: Order, Payment, then transaction lookup/insert. This serializes competing captures and prevents overpayment.

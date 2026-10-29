@@ -23,10 +23,14 @@ const { t } = useI18n();
                 <Link :href="`/tienda/${store.publicHandle}/productos`" class="text-sm font-semibold text-slate-700 hover:text-[var(--sf-accent)]">{{ t('storefront.catalog') }}</Link>
             </nav>
             <div class="ml-auto hidden w-full max-w-xs sm:block"><SearchBar :action="`/tienda/${store.publicHandle}/productos`" compact /></div>
+            <Link :href="`/tienda/${store.publicHandle}/carrito`" class="relative flex min-h-11 min-w-11 items-center justify-center rounded-lg text-slate-800 hover:bg-slate-50 hover:text-[var(--sf-accent)]" :aria-label="t('storefront.cart')">
+                <span class="text-xl" aria-hidden="true">▣</span>
+                <span v-if="store.cart.itemCount > 0" class="absolute right-0 top-0 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--sf-accent)] px-1 text-[10px] font-bold text-white">{{ store.cart.itemCount > 99 ? '99+' : store.cart.itemCount }}</span>
+            </Link>
         </div>
         <div v-if="open" class="border-t border-[var(--sf-border)] bg-white px-4 py-4 md:hidden">
             <SearchBar :action="`/tienda/${store.publicHandle}/productos`" compact />
-            <nav class="mt-3 grid" :aria-label="t('storefront.mainNavigation')"><Link :href="`/tienda/${store.publicHandle}`" class="flex min-h-11 items-center rounded-lg px-3 font-semibold">{{ t('storefront.home') }}</Link><Link :href="`/tienda/${store.publicHandle}/productos`" class="flex min-h-11 items-center rounded-lg px-3 font-semibold">{{ t('storefront.catalog') }}</Link></nav>
+            <nav class="mt-3 grid" :aria-label="t('storefront.mainNavigation')"><Link :href="`/tienda/${store.publicHandle}`" class="flex min-h-11 items-center rounded-lg px-3 font-semibold">{{ t('storefront.home') }}</Link><Link :href="`/tienda/${store.publicHandle}/productos`" class="flex min-h-11 items-center rounded-lg px-3 font-semibold">{{ t('storefront.catalog') }}</Link><Link :href="`/tienda/${store.publicHandle}/carrito`" class="flex min-h-11 items-center justify-between rounded-lg px-3 font-semibold"><span>{{ t('storefront.cart') }}</span><span>{{ store.cart.itemCount }}</span></Link></nav>
         </div>
     </header>
 </template>

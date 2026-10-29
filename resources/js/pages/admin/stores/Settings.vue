@@ -20,16 +20,19 @@ interface StoreSettingsData {
     social_links: Record<'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'whatsapp', string | null>;
     logo_media_asset_id: string | null; favicon_media_asset_id: string | null;
     primary_color: string; secondary_color: string | null; updated_at: string;
+    pickup_enabled: boolean; pickup_inventory_location_id: string | null; pickup_instructions: string | null;
     logo: SelectedMedia | null; favicon: SelectedMedia | null;
 }
 interface StorefrontData { status: 'PUBLISHED' | 'UNPUBLISHED'; public_handle: string; theme: 'Essential'; public_url: string | null }
+interface PickupReadiness { pickupAvailable: boolean; paymentAvailable: boolean; available: boolean; restrictions: string[]; paymentSettingsUrl: string | null }
 
 const props = defineProps<{
     store: StoreData;
     settings: StoreSettingsData;
-    options: { currencies: string[]; countries: Array<{ value: string; label: string }> };
+    options: { currencies: string[]; countries: Array<{ value: string; label: string }>; inventoryLocations: Array<{ value: string; label: string }> };
     mediaLimits: { max_image_mb: number };
     storefront: StorefrontData | null;
+    pickupReadiness: PickupReadiness;
 }>();
 const page = usePage<PageProps>();
 const { t } = useI18n();
@@ -62,6 +65,9 @@ const form = useForm({
     logo_media_asset_id: props.settings.logo_media_asset_id,
     favicon_media_asset_id: props.settings.favicon_media_asset_id,
     primary_color: props.settings.primary_color, secondary_color: props.settings.secondary_color,
+    pickup_enabled: props.settings.pickup_enabled,
+    pickup_inventory_location_id: props.settings.pickup_inventory_location_id,
+    pickup_instructions: props.settings.pickup_instructions,
     store_updated_at: props.store.updated_at, settings_updated_at: props.settings.updated_at,
 });
 const publicationForm = useForm<{ storefront: null }>({ storefront: null });
@@ -140,6 +146,19 @@ const save = () => {
                     <div class="border-b border-admin-border pb-4 sm:col-span-2"><p class="admin-label">{{ t('stores.settingsPage.generalSection') }}</p><h2 class="mt-1 text-base font-semibold text-admin-primary">{{ t('stores.settingsPage.general') }}</h2><p class="mt-1 text-xs leading-5 text-admin-neutral">{{ t('stores.settingsPage.generalHelp') }}</p></div>
                     <label for="display-name" class="grid gap-1.5"><span class="admin-label">{{ t('stores.settingsPage.displayName') }}</span><input id="display-name" v-model="form.display_name" maxlength="120" :placeholder="store.name" aria-describedby="display-name-help display-name-error" :aria-invalid="Boolean(form.errors.display_name)" class="admin-control w-full px-3 text-sm" /><span id="display-name-help" class="text-xs leading-5 text-admin-neutral">{{ t('stores.settingsPage.displayNameHelp') }}</span><FieldError id="display-name-error" :message="form.errors.display_name" /></label>
                     <label for="description" class="grid gap-1.5 sm:col-span-2"><span class="admin-label">{{ t('stores.settingsPage.shortDescription') }}</span><textarea id="description" v-model="form.short_description" maxlength="280" rows="3" aria-describedby="description-help description-error" :aria-invalid="Boolean(form.errors.short_description)" class="admin-control min-h-24 w-full px-3 py-2 text-sm" /><span id="description-help" class="text-xs leading-5 text-admin-neutral">{{ t('stores.settingsPage.shortDescriptionHelp') }}</span><FieldError id="description-error" :message="form.errors.short_description" /></label>
+                </fieldset>
+
+                <fieldset :disabled="!canUpdate || form.processing" class="admin-card grid min-w-0 gap-4 p-4 disabled:opacity-75 sm:grid-cols-2 sm:p-5">
+                    <legend class="sr-only">{{ t('stores.settingsPage.pickup.title') }}</legend>
+                    <div class="border-b border-admin-border pb-4 sm:col-span-2"><p class="admin-label">{{ t('stores.settingsPage.pickup.section') }}</p><h2 class="mt-1 text-base font-semibold text-admin-primary">{{ t('stores.settingsPage.pickup.title') }}</h2><p class="mt-1 text-xs leading-5 text-admin-neutral">{{ t('stores.settingsPage.pickup.help') }}</p></div>
+                    <label class="flex items-start justify-between gap-4 rounded-md border border-admin-border bg-admin-canvas p-3.5 sm:col-span-2"><span><span class="block text-sm font-semibold">{{ t('stores.settingsPage.pickup.enabled') }}</span><span class="mt-1 block text-xs leading-5 text-admin-neutral">{{ t('stores.settingsPage.pickup.enabledHelp') }}</span></span><input v-model="form.pickup_enabled" type="checkbox" class="mt-0.5 size-4 shrink-0 accent-admin-primary" /></label>
+                    <label for="pickup-location" class="grid gap-1.5 sm:col-span-2"><span class="admin-label">{{ t('stores.settingsPage.pickup.inventoryLocation') }}</span><select id="pickup-location" v-model="form.pickup_inventory_location_id" :required="form.pickup_enabled" aria-describedby="pickup-location-help pickup-location-error" :aria-invalid="Boolean(form.errors.pickup_inventory_location_id)" class="admin-control w-full px-3 text-sm"><option :value="null">{{ t('stores.settingsPage.pickup.selectLocation') }}</option><option v-for="location in options.inventoryLocations" :key="location.value" :value="location.value">{{ location.label }}</option></select><span id="pickup-location-help" class="text-xs leading-5 text-admin-neutral">{{ t('stores.settingsPage.pickup.inventoryHelp') }}</span><FieldError id="pickup-location-error" :message="form.errors.pickup_inventory_location_id" /></label>
+                    <label for="pickup-instructions" class="grid gap-1.5 sm:col-span-2"><span class="admin-label">{{ t('stores.settingsPage.pickup.instructions') }} <span class="normal-case text-admin-neutral">({{ t('common.optional') }})</span></span><textarea id="pickup-instructions" v-model="form.pickup_instructions" maxlength="1000" rows="3" aria-describedby="pickup-instructions-help pickup-instructions-error" :aria-invalid="Boolean(form.errors.pickup_instructions)" class="admin-control min-h-24 w-full px-3 py-2 text-sm" /><span id="pickup-instructions-help" class="text-xs leading-5 text-admin-neutral">{{ t('stores.settingsPage.pickup.instructionsHelp') }}</span><FieldError id="pickup-instructions-error" :message="form.errors.pickup_instructions" /></label>
+                    <div class="grid gap-2 rounded-md border p-3 text-xs leading-5 sm:col-span-2" :class="pickupReadiness.available ? 'border-admin-success-border bg-admin-success-bg text-admin-success' : 'border-admin-warning-border bg-admin-warning-bg text-amber-900'">
+                        <p class="font-semibold">{{ pickupReadiness.available ? t('stores.settingsPage.pickup.ready') : t('stores.settingsPage.pickup.notReady') }}</p>
+                        <p>{{ t('stores.settingsPage.pickup.addressSource') }}</p>
+                        <p v-if="!pickupReadiness.paymentAvailable">{{ t('stores.settingsPage.pickup.paymentRequired') }} <Link v-if="pickupReadiness.paymentSettingsUrl" :href="pickupReadiness.paymentSettingsUrl" class="font-semibold underline">{{ t('stores.settingsPage.pickup.openPayments') }}</Link></p>
+                    </div>
                 </fieldset>
 
                 <fieldset :disabled="!canUpdate || form.processing" class="admin-card grid min-w-0 gap-4 p-4 disabled:opacity-75 sm:grid-cols-2 sm:p-5">

@@ -6,6 +6,7 @@ use App\Modules\Orders\Domain\Enums\OrderPaymentStatus;
 use App\Modules\Orders\Domain\Enums\OrderStatus;
 use App\Modules\Orders\Domain\Models\Order;
 use App\Modules\Payments\Domain\Enums\PaymentTerms;
+use App\Modules\Payments\Domain\Enums\PaymentMethod;
 use App\Modules\Payments\Domain\Models\OrderPaymentPlan;
 use App\Modules\Payments\Domain\Models\StorePaymentSettings;
 use App\Modules\Stores\Domain\Models\Store;
@@ -20,9 +21,15 @@ class ConfigureOrderPaymentTerms
         private readonly OrderPaymentCalculator $calculator,
     ) {}
 
-    public function handle(Tenant $tenant, Store $store, Order $order, PaymentTerms $terms): OrderPaymentPlan
+    public function handle(
+        Tenant $tenant,
+        Store $store,
+        Order $order,
+        PaymentTerms $terms,
+        ?PaymentMethod $expectedMethod = null,
+    ): OrderPaymentPlan
     {
-        return DB::transaction(function () use ($tenant, $store, $order, $terms): OrderPaymentPlan {
+        return DB::transaction(function () use ($tenant, $store, $order, $terms, $expectedMethod): OrderPaymentPlan {
             $locked = Order::query()->where('tenant_id', $tenant->getKey())->where('store_id', $store->getKey())
                 ->lockForUpdate()->findOrFail($order->getKey());
             if ($locked->status !== OrderStatus::Confirmed) {
@@ -36,9 +43,23 @@ class ConfigureOrderPaymentTerms
                 'terms' => $terms, 'currency' => $locked->currency, 'total_amount' => $locked->grand_total,
                 'amount_due_now' => $locked->grand_total, 'amount_due_later' => '0.0000',
                 'deposit_type' => null, 'deposit_value' => null,
+                'expected_method' => $expectedMethod,
             ];
-            if ($terms === PaymentTerms::Cod) {
+            $settings = null;
+            if ($expectedMethod !== null) {
                 $settings = StorePaymentSettings::query()->where('tenant_id', $tenant->getKey())
+                    ->where('store_id', $store->getKey())->first();
+                $enabled = match ($expectedMethod) {
+                    PaymentMethod::Cash => $settings?->cash_enabled,
+                    PaymentMethod::BankTransfer => $settings?->bank_transfer_enabled,
+                    PaymentMethod::Online => $settings?->online_enabled,
+                };
+                if (! $enabled) {
+                    throw ValidationException::withMessages(['payment_terms' => 'The expected payment method is not enabled for this store.']);
+                }
+            }
+            if ($terms === PaymentTerms::Cod) {
+                $settings ??= StorePaymentSettings::query()->where('tenant_id', $tenant->getKey())
                     ->where('store_id', $store->getKey())->first();
                 if ($settings === null || ! $settings->cod_enabled) {
                     throw ValidationException::withMessages(['payment_terms' => 'COD is not enabled for this store.']);

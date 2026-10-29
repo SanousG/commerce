@@ -8,6 +8,7 @@ use App\Modules\Customers\Domain\Models\Customer;
 use App\Modules\Fiscal\Domain\Models\FiscalDocument;
 use App\Modules\Fulfillment\Domain\Models\Fulfillment;
 use App\Modules\Fulfillment\Domain\Models\Shipment;
+use App\Modules\Inventory\Domain\Models\InventoryLocation;
 use App\Modules\Orders\Domain\Enums\OrderFulfillmentStatus;
 use App\Modules\Orders\Domain\Enums\OrderPaymentStatus;
 use App\Modules\Orders\Domain\Enums\OrderStatus;
@@ -34,6 +35,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'billing_postal_code', 'billing_reference', 'delivery_type', 'subtotal_before_discounts', 'discount_total',
     'subtotal', 'shipping_total', 'tax_total', 'grand_total', 'tax_snapshot_version', 'taxable_amount',
     'exempt_amount', 'unaffected_amount', 'tax_calculated_at', 'placed_at', 'cancelled_at',
+    'pickup_inventory_location_id', 'pickup_name', 'pickup_address_line_1', 'pickup_address_line_2',
+    'pickup_district', 'pickup_province', 'pickup_department', 'pickup_country_code', 'pickup_postal_code',
+    'pickup_instructions',
 ])]
 class Order extends Model
 {
@@ -87,6 +91,11 @@ class Order extends Model
     public function paymentPlan(): HasOne
     {
         return $this->hasOne(OrderPaymentPlan::class);
+    }
+
+    public function pickupInventoryLocation(): BelongsTo
+    {
+        return $this->belongsTo(InventoryLocation::class, 'pickup_inventory_location_id');
     }
 
     public function refunds(): HasMany

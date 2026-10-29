@@ -58,6 +58,7 @@ export interface PublicStore {
     timezone: string;
     locale: string;
     theme: 'essential';
+    cart: { itemCount: number };
     branding: {
         primaryColor: string;
         accentColor: string;
@@ -71,5 +72,86 @@ export interface PublicStore {
         whatsapp: string | null;
         address: string[];
         socialLinks: Record<string, string>;
+    };
+}
+
+export interface PublicCartItem {
+    key: string;
+    productName: string;
+    productUrl: string;
+    category: string | null;
+    variantName: string;
+    options: Array<{ name: string; value: string }>;
+    image: StorefrontImage | null;
+    quantity: number;
+    available: number;
+    baseUnitPrice: string | null;
+    finalUnitPrice: string | null;
+    lineTotal: string | null;
+    issues: string[];
+}
+
+export interface PublicCart {
+    itemCount: number;
+    lineCount: number;
+    currency: string | null;
+    subtotalBeforeDiscounts: string;
+    discountTotal: string;
+    subtotal: string;
+    taxTotal: string;
+    valid: boolean;
+    maxQuantity: number;
+    items: PublicCartItem[];
+}
+
+export interface PublicCheckoutItem {
+    productName: string;
+    variantName: string | null;
+    quantity: number;
+    baseUnitPrice: string | null;
+    finalUnitPrice: string | null;
+    lineTotal: string | null;
+}
+
+export interface PublicCheckout {
+    status: 'PENDING' | 'READY';
+    ready: boolean;
+    expiresAt: string | null;
+    currency: string | null;
+    itemCount: number;
+    items: PublicCheckoutItem[];
+    totals: {
+        subtotalBeforeDiscounts: string;
+        discountTotal: string;
+        subtotal: string;
+        shippingTotal: string | null;
+        taxTotal: string;
+        grandTotal: string;
+    };
+    buyer: Record<string, string | null>;
+    commercial: {
+        deliveryType: 'PICKUP';
+        shippingConfigured: false;
+        pickupConfigured: boolean;
+        pickup: null | {
+            name: string;
+            addressLine1: string;
+            addressLine2: string | null;
+            district: string;
+            province: string;
+            department: string;
+            countryCode: string;
+            postalCode: string | null;
+            instructions: string | null;
+        };
+        paymentMethods: Array<'CASH'>;
+        payment: null | {
+            expectedMethod: 'CASH';
+            terms: 'COD';
+            depositType: 'NONE';
+            depositValue: '0.0000';
+        };
+        orderCreationAvailable: false;
+        restrictions: string[];
     };
 }

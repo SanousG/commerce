@@ -9,6 +9,8 @@ use App\Modules\Payments\Application\CaptureManualPayment;
 use App\Modules\Payments\Application\ConfigureOrderPaymentTerms;
 use App\Modules\Payments\Domain\Enums\CodDepositType;
 use App\Modules\Payments\Domain\Enums\PaymentTerms;
+use App\Modules\Payments\Domain\Enums\PaymentMethod;
+use App\Modules\Payments\Domain\Models\Payment;
 use Illuminate\Validation\ValidationException;
 
 class PaymentPlanAndSettingsTest extends PaymentsFeatureTestCase
@@ -55,5 +57,27 @@ class PaymentPlanAndSettingsTest extends PaymentsFeatureTestCase
 
         $this->expectException(ValidationException::class);
         app(ConfigureOrderPaymentTerms::class)->handle($tenant, $store, $order, PaymentTerms::Cod);
+    }
+
+    public function test_cash_on_pickup_snapshots_cash_cod_and_none_without_creating_payment(): void
+    {
+        $tenant = $this->createTenantFor(User::factory()->create());
+        [$order] = $this->readyOrder($tenant, $store = $this->createStore($tenant));
+        $this->enablePayments($tenant, $store, CodDepositType::None, '0.0000');
+
+        $plan = app(ConfigureOrderPaymentTerms::class)->handle(
+            $tenant,
+            $store,
+            $order,
+            PaymentTerms::Cod,
+            PaymentMethod::Cash,
+        );
+
+        $this->assertSame(PaymentTerms::Cod, $plan->terms);
+        $this->assertSame(PaymentMethod::Cash, $plan->expected_method);
+        $this->assertSame(CodDepositType::None, $plan->deposit_type);
+        $this->assertSame('0.0000', $plan->amount_due_now);
+        $this->assertSame($order->grand_total, $plan->amount_due_later);
+        $this->assertSame(0, Payment::query()->count());
     }
 }

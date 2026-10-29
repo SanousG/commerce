@@ -18,7 +18,6 @@ use App\Modules\Promotions\Application\EffectivePriceCalculator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 final class PublicCatalog
 {
@@ -77,6 +76,20 @@ final class PublicCatalog
         abort_unless(is_array($projected), 404);
 
         return $projected;
+    }
+
+    /** @return array{StoreListing, ProductVariant} */
+    public function listingVariant(PublicStoreContext $context, string $slug, string $variantKey): array
+    {
+        $listing = $this->baseQuery($context)->where('storefront_slug', $slug)->firstOrFail();
+        $row = $listing->variants->first(function ($row) use ($variantKey): bool {
+            $key = hash_hmac('sha256', $row->product_variant_id, (string) config('app.key'));
+
+            return hash_equals($key, $variantKey);
+        });
+        abort_unless($row !== null, 404);
+
+        return [$listing, $row->productVariant];
     }
 
     /** @return Collection<int, array<string, mixed>> */
@@ -240,7 +253,7 @@ final class PublicCatalog
     }
 
     /** @return Collection<int, array<string, mixed>> */
-    private function media(PublicStoreContext $context, Collection $attachments, string $fallbackAlt): Collection
+    public function media(PublicStoreContext $context, Collection $attachments, string $fallbackAlt): Collection
     {
         return $attachments->map(function ($attachment) use ($context, $fallbackAlt): ?array {
             $asset = $attachment->mediaAsset;

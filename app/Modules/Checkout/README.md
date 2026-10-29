@@ -38,6 +38,12 @@ allocation. Active tenant locations are allocated default-first, then by code
 and UUID. Locks follow the existing inventory order: locations by UUID,
 variants by UUID, and levels by `(location_id, variant_id)`.
 
+Public pickup supplies an explicit active same-Tenant location, so allocation is
+restricted to that location and never falls back to another warehouse. The
+`READY` Checkout freezes its authorized address/instructions and the expected
+`CASH + COD + NONE` terms. These are commercial snapshots, not a Payment;
+shipping address fields remain null.
+
 ## Future Order Contract
 
 Order creation must:
@@ -51,6 +57,6 @@ Order creation must:
 6. Apply the reservation commit/release policy chosen by the future Order and
    Payment phases.
 
-Checkout does not choose payment timing and never commits `on_hand`. The future
-Payment phase may support online payment, transfer, cash, COD, or deposits
-without adding payment state to Checkout.
+Checkout never commits `on_hand` or records collection state. Its pickup payment
+fields describe the expected handoff only; Payments remains authoritative for
+Order plans, Payment records, and captures.

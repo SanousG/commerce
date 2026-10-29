@@ -82,5 +82,25 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perHour(200)->by("media-upload|{$tenant}"),
             ];
         });
+
+        RateLimiter::for('public-cart', function (Request $request) {
+            $handle = (string) $request->route('publicHandle', 'unknown');
+            $session = hash('sha256', $request->session()->getId());
+
+            return [
+                Limit::perMinute(30)->by("public-cart|{$handle}|{$session}"),
+                Limit::perMinute(120)->by('public-cart|'.$request->ip()),
+            ];
+        });
+
+        RateLimiter::for('public-checkout', function (Request $request) {
+            $handle = (string) $request->route('publicHandle', 'unknown');
+            $session = hash('sha256', $request->session()->getId());
+
+            return [
+                Limit::perMinute(10)->by("public-checkout|{$handle}|{$session}"),
+                Limit::perMinute(40)->by('public-checkout|'.$request->ip()),
+            ];
+        });
     }
 }

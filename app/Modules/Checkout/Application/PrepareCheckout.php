@@ -70,7 +70,10 @@ class PrepareCheckout
             }
 
             $expiresAt = now()->addMinutes(max(1, (int) config('commerce.checkout_ttl_minutes', 15)));
-            $this->inventory->reserve($tenant, $scoped->lines()->get(), $expiresAt);
+            $pickupLocationId = $scoped->delivery_type === CheckoutDeliveryType::Pickup
+                ? $scoped->pickup_inventory_location_id
+                : null;
+            $this->inventory->reserve($tenant, $scoped->lines()->get(), $expiresAt, $pickupLocationId);
             $scoped->update([
                 'status' => CheckoutStatus::Ready, 'currency' => $summary->currency,
                 'subtotal_before_discounts' => $summary->subtotalBeforeDiscounts,

@@ -45,3 +45,29 @@ Themes are allowlisted in `config/storefront-themes.php` and mirrored by a
 static frontend registry. `essential` is the only available/default theme and
 the safe fallback. Database values can never become arbitrary component paths.
 See `docs/storefront/SF-02_ESSENTIAL_CATALOG.md` for routes and extension rules.
+
+## Public guest cart
+
+SF-03 adds a public orchestration layer over the existing Cart application
+services. Ownership comes from an encrypted, HttpOnly, Store-specific cookie;
+the token is never sent through URLs or Inertia props. Public mutations retain
+CSRF, rate limits, session idempotency and Cart row locks. CartCalculator remains
+authoritative for current listing eligibility, prices, promotions, inventory
+availability and tax previews. No inventory reservation, Checkout, Order or
+Payment is created. See `docs/storefront/SF-03_PUBLIC_CART.md`.
+
+## Public guest checkout
+
+SF-04 reuses the cart cookie as the sole public ownership credential and scopes
+every Checkout lookup by the resolved Tenant, Store and Cart. Public HTTP never
+accepts those IDs and never exposes the Checkout token. The separate Storefront
+controller starts, updates, prepares and presents Checkout through existing
+application services; it does not expose administrative controllers.
+
+Preparation revalidates the cart, persists tax/commercial snapshots and reserves
+inventory. SF-04.2 adds one fail-closed path: an explicitly authorized Store
+pickup address, one active same-Tenant inventory location, and expected
+`CASH + COD + NONE`. Public requests accept no shipping fields, and the location
+UUID is never presented. No Customer, Order or Payment is created; Order
+creation remains blocked for SF-04.3. See `SF-04_PUBLIC_CHECKOUT.md` and
+`SF-04_2_PICKUP_AND_PAYMENT.md` under `docs/storefront`.

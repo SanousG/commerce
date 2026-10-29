@@ -10,6 +10,7 @@ final class PublicStorePresenter
     public function __construct(
         private readonly PublicStoreLocale $locales,
         private readonly ThemeRegistry $themes,
+        private readonly PublicCartContext $cart,
     ) {}
 
     /** @return array<string, mixed> */
@@ -29,6 +30,9 @@ final class PublicStorePresenter
             'timezone' => $store->timezone,
             'locale' => $locale,
             'theme' => $this->themes->resolve(),
+            'cart' => [
+                'itemCount' => (int) ($this->cart->cart()?->items()->sum('quantity') ?? 0),
+            ],
             'branding' => [
                 'primaryColor' => $primary,
                 'accentColor' => $accent,

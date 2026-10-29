@@ -6,7 +6,11 @@ use App\Modules\Cart\Domain\Models\Cart;
 use App\Modules\Checkout\Domain\Enums\CheckoutDeliveryType;
 use App\Modules\Checkout\Domain\Enums\CheckoutStatus;
 use App\Modules\Customers\Domain\Models\Customer;
+use App\Modules\Inventory\Domain\Models\InventoryLocation;
 use App\Modules\Orders\Domain\Models\Order;
+use App\Modules\Payments\Domain\Enums\CodDepositType;
+use App\Modules\Payments\Domain\Enums\PaymentMethod;
+use App\Modules\Payments\Domain\Enums\PaymentTerms;
 use App\Modules\Stores\Domain\Models\Store;
 use App\Modules\Tenancy\Domain\Models\Tenant;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -25,6 +29,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'billing_address_line_1', 'billing_address_line_2', 'billing_postal_code', 'billing_reference',
     'subtotal_before_discounts', 'discount_total', 'subtotal', 'shipping_total', 'tax_total', 'grand_total',
     'tax_snapshot_version', 'taxable_amount', 'exempt_amount', 'unaffected_amount', 'tax_calculated_at',
+    'pickup_inventory_location_id', 'pickup_name', 'pickup_address_line_1', 'pickup_address_line_2',
+    'pickup_district', 'pickup_province', 'pickup_department', 'pickup_country_code', 'pickup_postal_code',
+    'pickup_instructions', 'expected_payment_method', 'payment_terms', 'cod_deposit_type', 'cod_deposit_value',
     'expires_at', 'completed_at',
 ])]
 class CheckoutSession extends Model
@@ -61,6 +68,11 @@ class CheckoutSession extends Model
         return $this->hasOne(Order::class);
     }
 
+    public function pickupInventoryLocation(): BelongsTo
+    {
+        return $this->belongsTo(InventoryLocation::class, 'pickup_inventory_location_id');
+    }
+
     protected function casts(): array
     {
         return [
@@ -70,6 +82,8 @@ class CheckoutSession extends Model
             'shipping_total' => 'decimal:4', 'tax_total' => 'decimal:4', 'grand_total' => 'decimal:4',
             'tax_snapshot_version' => 'integer', 'taxable_amount' => 'decimal:4', 'exempt_amount' => 'decimal:4',
             'unaffected_amount' => 'decimal:4', 'tax_calculated_at' => 'immutable_datetime',
+            'expected_payment_method' => PaymentMethod::class, 'payment_terms' => PaymentTerms::class,
+            'cod_deposit_type' => CodDepositType::class, 'cod_deposit_value' => 'decimal:4',
             'expires_at' => 'immutable_datetime', 'completed_at' => 'immutable_datetime',
         ];
     }

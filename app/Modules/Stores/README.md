@@ -52,7 +52,14 @@ Social links are a bounded JSON object for Facebook, Instagram, TikTok, YouTube
 and WhatsApp. Form validation requires HTTPS and each channel's official domain.
 Phone values are normalized to E.164-like `+` plus 7–15 digits.
 
-Guest checkout, buyer notes, order auto-confirmation, shipping rates/zones and
+Store pickup is disabled by default. Enabling it explicitly authorizes the
+StoreSettings address as the single pickup point and requires one active,
+same-Tenant `InventoryLocation`. This is an allocation rule only: Inventory
+remains Tenant-owned. Validation, transaction locks, and a composite foreign key
+enforce the boundary. Optional instructions are exposed only in the bounded
+public Checkout projection.
+
+Buyer notes, order auto-confirmation, shipping rates/zones and
 courier behavior are deliberately not stored here. The current Checkout and
 Order contracts do not support those preferences, and an inert flag would
 misrepresent behavior. Fiscal issuer identity remains exclusively owned by

@@ -4,6 +4,7 @@ namespace Tests\Feature\Stores;
 
 use App\Models\User;
 use App\Modules\Stores\Domain\Models\StoreSettings;
+use App\Modules\Inventory\Application\CreateDefaultInventoryLocation;
 use Illuminate\Database\QueryException;
 
 class StoreSettingsDatabaseConstraintTest extends StoreFeatureTestCase
@@ -37,6 +38,20 @@ class StoreSettingsDatabaseConstraintTest extends StoreFeatureTestCase
         StoreSettings::create([
             'tenant_id' => $tenant->getKey(), 'store_id' => $store->getKey(), 'country_code' => 'peru',
             'contact_phone' => 'unsafe', 'social_links' => StoreSettings::DEFAULT_SOCIAL_LINKS, 'primary_color' => 'black',
+        ]);
+    }
+
+    public function test_database_rejects_enabling_pickup_without_complete_address(): void
+    {
+        $tenant = $this->createTenantFor(User::factory()->create());
+        $store = $this->createStore($tenant);
+        $location = app(CreateDefaultInventoryLocation::class)->handle($tenant);
+
+        $this->expectException(QueryException::class);
+        StoreSettings::create([
+            'tenant_id' => $tenant->getKey(), 'store_id' => $store->getKey(), 'country_code' => 'PE',
+            'social_links' => StoreSettings::DEFAULT_SOCIAL_LINKS, 'primary_color' => '#17211B',
+            'pickup_enabled' => true, 'pickup_inventory_location_id' => $location->getKey(),
         ]);
     }
 }

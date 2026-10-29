@@ -10,6 +10,8 @@ use App\Modules\Audit\Domain\Enums\AuditSubjectType;
 use App\Modules\Media\Domain\Enums\MediaStatus;
 use App\Modules\Media\Domain\Enums\MediaType;
 use App\Modules\Media\Domain\Models\MediaAsset;
+use App\Modules\Inventory\Domain\Enums\InventoryLocationStatus;
+use App\Modules\Inventory\Domain\Models\InventoryLocation;
 use App\Modules\Stores\Domain\Models\Store;
 use App\Modules\Stores\Domain\Models\StoreSettings;
 use App\Modules\Tenancy\Domain\Models\Tenant;
@@ -27,6 +29,7 @@ class UpdateStoreSettings
         'address_line_1', 'address_line_2', 'district', 'province', 'department', 'country_code',
         'postal_code', 'social_links', 'logo_media_asset_id', 'favicon_media_asset_id',
         'primary_color', 'secondary_color',
+        'pickup_enabled', 'pickup_inventory_location_id', 'pickup_instructions',
     ];
 
     public function __construct(private readonly AuditRecorder $audit) {}
@@ -42,6 +45,7 @@ class UpdateStoreSettings
             $this->ensureCurrent($store, (string) $attributes['store_updated_at']);
             $this->ensureCurrent($settings, (string) $attributes['settings_updated_at']);
             $this->lockBrandingAssets($tenant, Arr::only($attributes, ['logo_media_asset_id', 'favicon_media_asset_id']));
+            $this->lockPickupLocation($tenant, $attributes['pickup_inventory_location_id']);
             $attributes['social_links'] = array_merge(StoreSettings::DEFAULT_SOCIAL_LINKS, $attributes['social_links']);
 
             $store->fill(Arr::only($attributes, self::STORE_FIELDS));
@@ -92,6 +96,19 @@ class UpdateStoreSettings
                 ->where('type', MediaType::Image)->where('status', MediaStatus::Ready)
                 ->lockForUpdate()->findOrFail($id);
         }
+    }
+
+    private function lockPickupLocation(Tenant $tenant, mixed $locationId): void
+    {
+        if ($locationId === null) {
+            return;
+        }
+
+        InventoryLocation::query()
+            ->where('tenant_id', $tenant->getKey())
+            ->where('status', InventoryLocationStatus::Active)
+            ->lockForUpdate()
+            ->findOrFail($locationId);
     }
 
     /** @return array<string, array{from: mixed, to: mixed}> */

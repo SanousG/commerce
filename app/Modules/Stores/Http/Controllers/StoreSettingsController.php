@@ -5,6 +5,7 @@ namespace App\Modules\Stores\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Media\Domain\Models\MediaAsset;
 use App\Modules\Storefront\Application\DevelopmentStorefrontAccess;
+use App\Modules\Storefront\Application\PublicPickupReadiness;
 use App\Modules\Storefront\Application\SetPublicStorePublication;
 use App\Modules\Stores\Application\GetStoreSettings;
 use App\Modules\Stores\Application\StoreAccess;
@@ -27,12 +28,14 @@ class StoreSettingsController extends Controller
         StoreAccess $access,
         GetStoreSettings $get,
         DevelopmentStorefrontAccess $developmentAccess,
+        PublicPickupReadiness $pickupReadiness,
         string $store,
     ): Response {
         abort_unless($access->canView($request->user(), $tenants->get()), 403);
         $store = $get->handle($tenants->get(), $store);
         $settings = $store->settings;
         $publication = $store->storefrontPublication;
+        $pickup = $pickupReadiness->evaluate($tenants->get(), $store);
 
         return Inertia::render('admin/stores/Settings', [
             'store' => [
@@ -46,6 +49,7 @@ class StoreSettingsController extends Controller
                     'address_line_1', 'address_line_2', 'district', 'province', 'department', 'country_code',
                     'postal_code', 'social_links', 'logo_media_asset_id', 'favicon_media_asset_id',
                     'primary_color', 'secondary_color',
+                    'pickup_enabled', 'pickup_inventory_location_id', 'pickup_instructions',
                 ]),
                 'social_links' => array_merge(StoreSettings::DEFAULT_SOCIAL_LINKS, $settings->social_links ?? []),
                 'updated_at' => $settings->updated_at->toISOString(),
@@ -55,6 +59,21 @@ class StoreSettingsController extends Controller
             'options' => [
                 'currencies' => ['PEN', 'USD', 'EUR'],
                 'countries' => [['value' => 'PE', 'label' => 'Peru']],
+                'inventoryLocations' => $tenants->get()->inventoryLocations()
+                    ->where('status', 'ACTIVE')->orderByDesc('is_default')->orderBy('code')->get()
+                    ->map(fn ($location): array => [
+                        'value' => (string) $location->getKey(),
+                        'label' => $location->name.' ('.$location->code.')',
+                    ])->values()->all(),
+            ],
+            'pickupReadiness' => [
+                'pickupAvailable' => $pickup['pickupAvailable'],
+                'paymentAvailable' => $pickup['paymentAvailable'],
+                'available' => $pickup['available'],
+                'restrictions' => $pickup['restrictions'],
+                'paymentSettingsUrl' => $request->user()?->can('payments.settings')
+                    ? route('admin.payments.settings.show', absolute: false)
+                    : null,
             ],
             'mediaLimits' => ['max_image_mb' => (int) config('media.max_image_mb')],
             'storefront' => $publication === null ? null : [

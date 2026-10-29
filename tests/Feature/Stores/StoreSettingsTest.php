@@ -7,6 +7,7 @@ use App\Modules\Access\Domain\Enums\SystemRole;
 use App\Modules\Media\Domain\Enums\MediaStatus;
 use App\Modules\Media\Domain\Enums\MediaType;
 use App\Modules\Media\Domain\Models\MediaAsset;
+use App\Modules\Inventory\Application\CreateDefaultInventoryLocation;
 use App\Modules\Storefront\Application\ProvisionStorefrontPublication;
 use App\Modules\Stores\Application\GetStoreSettings;
 use App\Modules\Stores\Domain\Enums\StorefrontPublicationStatus;
@@ -56,6 +57,7 @@ class StoreSettingsTest extends StoreFeatureTestCase
                 ->component('admin/stores/Settings')
                 ->where('store.id', $store->getKey())
                 ->where('settings.country_code', 'PE')
+                ->where('settings.pickup_enabled', false)
                 ->where('mediaLimits.max_image_mb', 17)
                 ->where('settings.primary_color', '#17211B'));
 
@@ -98,6 +100,54 @@ class StoreSettingsTest extends StoreFeatureTestCase
             ->assertForbidden();
 
         $this->assertDatabaseMissing('store_settings', ['store_id' => $memberStore->getKey(), 'display_name' => 'Forbidden']);
+    }
+
+    public function test_owner_can_authorize_one_complete_pickup_point_and_active_tenant_location(): void
+    {
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $location = app(CreateDefaultInventoryLocation::class)->handle($tenant);
+        $store = $this->createStore($tenant);
+        $this->settings($tenant, $store);
+        $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
+
+        $this->patch(route('admin.stores.settings.update', $store), $this->payload($store, [
+            'pickup_enabled' => true,
+            'pickup_inventory_location_id' => $location->getKey(),
+            'pickup_instructions' => 'Presenta el número de pedido.',
+            'address_line_1' => 'Av. Pickup 123',
+            'department' => 'Lima',
+            'province' => 'Lima',
+            'district' => 'Miraflores',
+        ]))->assertRedirect();
+
+        $this->assertDatabaseHas('store_settings', [
+            'tenant_id' => $tenant->getKey(),
+            'store_id' => $store->getKey(),
+            'pickup_enabled' => true,
+            'pickup_inventory_location_id' => $location->getKey(),
+            'pickup_instructions' => 'Presenta el número de pedido.',
+        ]);
+    }
+
+    public function test_pickup_rejects_incomplete_address_and_cross_tenant_inventory_location(): void
+    {
+        $user = User::factory()->create();
+        $tenant = $this->createTenantFor($user);
+        $store = $this->createStore($tenant);
+        $this->settings($tenant, $store);
+        $otherTenant = $this->createTenantFor(User::factory()->create());
+        $otherLocation = app(CreateDefaultInventoryLocation::class)->handle($otherTenant);
+        $this->actingAs($user)->withSession([TenantContext::SESSION_KEY => $tenant->getKey()]);
+
+        $this->patch(route('admin.stores.settings.update', $store), $this->payload($store, [
+            'pickup_enabled' => true,
+            'pickup_inventory_location_id' => $otherLocation->getKey(),
+        ]))->assertInvalid([
+            'pickup_inventory_location_id', 'address_line_1', 'department', 'province', 'district',
+        ]);
+
+        $this->assertFalse($store->settings()->sole()->pickup_enabled);
     }
 
     public function test_owner_can_view_publish_and_unpublish_storefront_from_settings(): void
@@ -281,6 +331,7 @@ class StoreSettingsTest extends StoreFeatureTestCase
             'currency' => $store->currency, 'timezone' => $store->timezone, 'locale' => $store->locale,
             'logo_media_asset_id' => null, 'favicon_media_asset_id' => null,
             'primary_color' => '#17211B', 'secondary_color' => null,
+            'pickup_enabled' => false, 'pickup_inventory_location_id' => null, 'pickup_instructions' => null,
             'store_updated_at' => $store->updated_at->toISOString(),
             'settings_updated_at' => $settings->updated_at->toISOString(),
         ], $overrides);

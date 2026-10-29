@@ -3,6 +3,7 @@
 namespace App\Modules\Storefront\Http\Middleware;
 
 use App\Modules\Storefront\Application\PublicStoreContext;
+use App\Modules\Storefront\Application\PublicStoreLocale;
 use App\Modules\Stores\Domain\Enums\StorefrontPublicationStatus;
 use App\Modules\Stores\Domain\Enums\StoreStatus;
 use App\Modules\Stores\Domain\Models\StorefrontPublication;
@@ -13,7 +14,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class ResolvePublicStore
 {
-    public function __construct(private readonly PublicStoreContext $context) {}
+    public function __construct(
+        private readonly PublicStoreContext $context,
+        private readonly PublicStoreLocale $locales,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -33,10 +37,13 @@ final class ResolvePublicStore
             ->firstOrFail();
 
         $this->context->set($publication);
+        $previousLocale = app()->getLocale();
+        app()->setLocale($this->locales->resolve($publication->store->locale));
 
         try {
             return $next($request);
         } finally {
+            app()->setLocale($previousLocale);
             $this->context->clear();
         }
     }

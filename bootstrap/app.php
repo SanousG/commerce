@@ -3,6 +3,7 @@
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\SetUserLocale;
 use App\Modules\Storefront\Http\Middleware\EnsureDevelopmentStorefrontRoute;
+use App\Modules\Storefront\Http\Middleware\ResolvePublicCart;
 use App\Modules\Storefront\Http\Middleware\ResolvePublicStore;
 use App\Modules\Stores\Http\Middleware\ResolveStore;
 use App\Modules\Tenancy\Http\Middleware\ResolveTenant;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'store' => ResolveStore::class,
             'storefront.development' => EnsureDevelopmentStorefrontRoute::class,
+            'storefront.cart' => ResolvePublicCart::class,
             'storefront.public' => ResolvePublicStore::class,
             'tenant' => ResolveTenant::class,
         ]);

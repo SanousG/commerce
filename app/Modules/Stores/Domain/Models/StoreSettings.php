@@ -3,6 +3,7 @@
 namespace App\Modules\Stores\Domain\Models;
 
 use App\Modules\Media\Domain\Models\MediaAsset;
+use App\Modules\Inventory\Domain\Models\InventoryLocation;
 use App\Modules\Tenancy\Domain\Models\Tenant;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'whatsapp_phone', 'address_line_1', 'address_line_2', 'district', 'province', 'department',
     'country_code', 'postal_code', 'social_links', 'logo_media_asset_id', 'favicon_media_asset_id',
     'primary_color', 'secondary_color',
+    'pickup_enabled', 'pickup_inventory_location_id', 'pickup_instructions',
 ])]
 class StoreSettings extends Model
 {
@@ -47,8 +49,13 @@ class StoreSettings extends Model
         return $this->belongsTo(MediaAsset::class, 'favicon_media_asset_id');
     }
 
+    public function pickupInventoryLocation(): BelongsTo
+    {
+        return $this->belongsTo(InventoryLocation::class, 'pickup_inventory_location_id');
+    }
+
     protected function casts(): array
     {
-        return ['social_links' => 'array'];
+        return ['social_links' => 'array', 'pickup_enabled' => 'boolean'];
     }
 }

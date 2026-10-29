@@ -50,7 +50,9 @@ use App\Modules\Returns\Http\Controllers\ExchangeController;
 use App\Modules\Returns\Http\Controllers\ReturnController;
 use App\Modules\Returns\Http\Controllers\ReturnItemController;
 use App\Modules\Storefront\Http\Controllers\PublicMediaController;
+use App\Modules\Storefront\Http\Controllers\StorefrontCartController;
 use App\Modules\Storefront\Http\Controllers\StorefrontCatalogController;
+use App\Modules\Storefront\Http\Controllers\StorefrontCheckoutController;
 use App\Modules\Storefront\Http\Controllers\StorefrontHomeController;
 use App\Modules\Storefront\Http\Controllers\StorefrontProductController;
 use App\Modules\Stores\Http\Controllers\StoreController;
@@ -74,7 +76,7 @@ Route::get('/', function () {
         : to_route('verification.notice');
 });
 
-Route::middleware(['storefront.development', 'storefront.public'])
+Route::middleware(['storefront.development', 'storefront.public', 'storefront.cart'])
     ->prefix('/tienda/{publicHandle}')
     ->where(['publicHandle' => '[a-z0-9]+(?:-[a-z0-9]+)*'])
     ->name('storefront.development.')
@@ -85,6 +87,23 @@ Route::middleware(['storefront.development', 'storefront.public'])
             ->where('categorySlug', '[a-z0-9]+(?:-[a-z0-9]+)*')->name('categories.show');
         Route::get('/productos/{listingSlug}', StorefrontProductController::class)
             ->where('listingSlug', '[a-z0-9]+(?:-[a-z0-9]+)*')->name('products.show');
+        Route::get('/carrito', [StorefrontCartController::class, 'show'])->name('cart.show');
+        Route::post('/productos/{listingSlug}/carrito', [StorefrontCartController::class, 'add'])
+            ->middleware('throttle:public-cart')->block(10, 10)
+            ->where('listingSlug', '[a-z0-9]+(?:-[a-z0-9]+)*')->name('cart.items.store');
+        Route::patch('/carrito/articulos/{lineKey}', [StorefrontCartController::class, 'update'])
+            ->middleware('throttle:public-cart')->block(10, 10)
+            ->where('lineKey', '[a-f0-9]{64}')->name('cart.items.update');
+        Route::delete('/carrito/articulos/{lineKey}', [StorefrontCartController::class, 'remove'])
+            ->middleware('throttle:public-cart')->block(10, 10)
+            ->where('lineKey', '[a-f0-9]{64}')->name('cart.items.destroy');
+        Route::delete('/carrito', [StorefrontCartController::class, 'clear'])
+            ->middleware('throttle:public-cart')->block(10, 10)->name('cart.clear');
+        Route::get('/checkout', [StorefrontCheckoutController::class, 'show'])->name('checkout.show');
+        Route::post('/checkout', [StorefrontCheckoutController::class, 'start'])
+            ->middleware('throttle:public-checkout')->block(10, 10)->name('checkout.start');
+        Route::post('/checkout/preparar', [StorefrontCheckoutController::class, 'prepare'])
+            ->middleware('throttle:public-checkout')->block(10, 10)->name('checkout.prepare');
         Route::get('/media/{checksum}/{variant}', PublicMediaController::class)
             ->where(['checksum' => '[a-f0-9]{64}', 'variant' => 'thumbnail|medium'])->name('media');
     });

@@ -3,6 +3,7 @@
 namespace App\Modules\Stores\Http\Requests;
 
 use App\Modules\Stores\Application\StoreAccess;
+use App\Modules\Inventory\Domain\Enums\InventoryLocationStatus;
 use App\Modules\Tenancy\Application\TenantContext;
 use Closure;
 use Illuminate\Foundation\Http\FormRequest;
@@ -33,11 +34,11 @@ class UpdateStoreSettingsRequest extends FormRequest
             'contact_email' => ['nullable', 'email:rfc', 'max:254'],
             'contact_phone' => ['nullable', 'regex:/^\+[1-9][0-9]{6,14}$/'],
             'whatsapp_phone' => ['nullable', 'regex:/^\+[1-9][0-9]{6,14}$/'],
-            'address_line_1' => ['nullable', 'string', 'max:255'],
+            'address_line_1' => [Rule::requiredIf($this->boolean('pickup_enabled')), 'nullable', 'string', 'max:255'],
             'address_line_2' => ['nullable', 'string', 'max:255'],
-            'district' => ['nullable', 'string', 'max:120'],
-            'province' => ['nullable', 'string', 'max:120'],
-            'department' => ['nullable', 'string', 'max:120'],
+            'district' => [Rule::requiredIf($this->boolean('pickup_enabled')), 'nullable', 'string', 'max:120'],
+            'province' => [Rule::requiredIf($this->boolean('pickup_enabled')), 'nullable', 'string', 'max:120'],
+            'department' => [Rule::requiredIf($this->boolean('pickup_enabled')), 'nullable', 'string', 'max:120'],
             'country_code' => ['required', 'string', Rule::in(['PE'])],
             'postal_code' => ['nullable', 'string', 'max:32', 'regex:/^[A-Za-z0-9 -]+$/'],
             'currency' => ['required', 'string', Rule::in(['PEN', 'USD', 'EUR'])],
@@ -51,6 +52,16 @@ class UpdateStoreSettingsRequest extends FormRequest
             'favicon_media_asset_id' => ['nullable', 'uuid'],
             'primary_color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'secondary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'pickup_enabled' => ['required', 'boolean'],
+            'pickup_inventory_location_id' => [
+                Rule::requiredIf($this->boolean('pickup_enabled')),
+                'nullable',
+                'uuid',
+                Rule::exists('inventory_locations', 'id')->where(fn ($query) => $query
+                    ->where('tenant_id', app(TenantContext::class)->id())
+                    ->where('status', InventoryLocationStatus::Active->value)),
+            ],
+            'pickup_instructions' => ['nullable', 'string', 'max:1000'],
             'store_updated_at' => ['required', 'date'],
             'settings_updated_at' => ['required', 'date'],
         ];
@@ -61,7 +72,8 @@ class UpdateStoreSettingsRequest extends FormRequest
         $nullable = [
             'display_name', 'short_description', 'contact_email', 'contact_phone', 'whatsapp_phone',
             'address_line_1', 'address_line_2', 'district', 'province', 'department', 'postal_code',
-            'logo_media_asset_id', 'favicon_media_asset_id', 'secondary_color',
+            'logo_media_asset_id', 'favicon_media_asset_id', 'secondary_color', 'pickup_inventory_location_id',
+            'pickup_instructions',
         ];
         $normalized = [];
         foreach ($nullable as $field) {
@@ -85,6 +97,7 @@ class UpdateStoreSettingsRequest extends FormRequest
             'primary_color' => strtoupper((string) $this->input('primary_color')),
             'secondary_color' => is_string($normalized['secondary_color']) ? strtoupper($normalized['secondary_color']) : null,
             'social_links' => $social,
+            'pickup_enabled' => $this->boolean('pickup_enabled'),
         ]);
     }
 
